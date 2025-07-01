@@ -198,4 +198,11 @@ query_3_2a = query_3_2_pairs(df, "Today [0]", used_ids_a)
 query_3_2b = query_3_2_pairs(df, "Yesterday [1]", used_ids_b)
 
 # --- Display Results ---
-display_pairs("Query 1.1a - Today 1→0 Pairs", query_
+display_pairs("Query 1.1a - Today 1→0 Pairs", query_1a)
+display_pairs("Query 1.1b - Yesterday 1→0 Pairs", query_1b)
+display_trios("Query 2.1a - Trios (Today)", trios_today)
+display_trios("Query 2.1b - Trios (Yesterday)", trios_yesterday)
+display_pairs("Query 3.1a - Today #→±1", query_3_1a)
+display_pairs("Query 3.1b - Yesterday #→±1", query_3_1b)
+display_pairs("Query 3.2a - Today #→# (≠±1)", query_3_2a)
+display_pairs("Query 3.2b - Yesterday #→# (≠±1)", query_3_2b)
