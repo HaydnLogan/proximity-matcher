@@ -3,7 +3,7 @@ import pandas as pd
 from itertools import combinations
 
 st.set_page_config(layout="wide")
-st.title("Proximity & Trio Match Analyzer v6b q1→3 w/colors")
+st.title("Proximity & Trio Match Analyzer v6b q1→4 w/colors")
 
 # --- File Upload ---
 uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
@@ -152,7 +152,34 @@ def query_3_2_pairs(df, day_filter, exclude_ids):
                     'Day': row['Day']
                 })
     return sorted(results, key=lambda r: r['Output'], reverse=True)
-    
+
+def query_4_opposites(df, day_filter):
+    results = []
+    rows = df[df['Day'] == day_filter]
+    for idx, row in rows.iterrows():
+        opposite_value = -row['M Name']
+        matches = df[
+            (df['Output'] == row['Output']) &
+            (df['M Name'] == opposite_value) &
+            (df['Arrival'] < row['Arrival']) &
+            (df.index != idx)
+        ]
+        for m_idx, match in matches.iterrows():
+            if (800 <= row['Origin'] <= 1300) or (800 <= match['Origin'] <= 1300):
+                results.append({
+                    'Row New': idx,
+                    'Row Old': m_idx,
+                    'Newest Arrival': row['Arrival'],
+                    'Older Arrival': match['Arrival'],
+                    'M Newer': row['M Name'],
+                    'M Older': match['M Name'],
+                    'Output': row['Output'],
+                    'Origin New': row['Origin'],
+                    'Origin Old': match['Origin'],
+                    'Day': row['Day']
+                })
+    return sorted(results, key=lambda r: r['Output'], reverse=True)
+
 
 # --- Display Functions ---
 def display_pairs(title, results):
@@ -226,6 +253,9 @@ used_ids_a = get_used_pair_ids(query_1a, query_3_1a)
 used_ids_b = get_used_pair_ids(query_1b, query_3_1b)
 query_3_2a = query_3_2_pairs(df, "Today [0]", used_ids_a)
 query_3_2b = query_3_2_pairs(df, "Yesterday [1]", used_ids_b)
+query_4_1a = query_4_opposites(df, "Today [0]")
+query_4_1b = query_4_opposites(df, "Yesterday [1]")
+
 
 # --- Display Results ---
 display_pairs("Query 1.1a - Today 1→0 Pairs", query_1a)
@@ -236,3 +266,5 @@ display_pairs("Query 3.1a - Today #→±1", query_3_1a)
 display_pairs("Query 3.1b - Yesterday #→±1", query_3_1b)
 display_pairs("Query 3.2a - Today #→# (≠±1)", query_3_2a)
 display_pairs("Query 3.2b - Yesterday #→# (≠±1)", query_3_2b)
+display_pairs("Query 4.1a - Opposites (Today)", query_4_1a)
+display_pairs("Query 4.1b - Opposites (Yesterday)", query_4_1b)
