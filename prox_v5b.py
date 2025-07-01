@@ -12,7 +12,7 @@ if not uploaded_file:
 
 df = pd.read_csv(uploaded_file)
 
-# Convert and clean columns
+# Convert columns
 for col in ['Arrival', 'Departure']:
     if col in df.columns:
         df[col] = pd.to_datetime(df[col], errors='coerce')
@@ -22,22 +22,22 @@ df['Output'] = pd.to_numeric(df['Output'], errors='coerce')
 df['Origin'] = pd.to_numeric(df['Origin'], errors='coerce')
 df['Day'] = df['Day'].astype(str)
 
-# Step 1: Drop rows with missing Arrival or Output
+# --- Remove rows where Output is missing, zero, or unmatched
 initial_len = len(df)
+
+# Remove rows with missing Arrival or Output
 df = df.dropna(subset=['Arrival', 'Output'])
-filtered_len = len(df)
 
-# Step 2: Remove isolated Output rows
-df = df.sort_values("Output")
-df['Prev_Output'] = df['Output'].shift(1)
-df['Next_Output'] = df['Output'].shift(-1)
-df = df[(df['Output'] == df['Prev_Output']) | (df['Output'] == df['Next_Output'])]
-df.drop(columns=['Prev_Output', 'Next_Output'], inplace=True)
-
-# Step 3: Remove Output <= 0
+# Remove rows where Output <= 0
 df = df[df['Output'] > 0]
 
-# Report cleaned rows
+# Sort by Output
+df = df.sort_values(by='Output').reset_index(drop=True)
+
+# Remove rows with unique Output (no match above/below)
+output_mask = df['Output'].eq(df['Output'].shift(1)) | df['Output'].eq(df['Output'].shift(-1))
+df = df[output_mask].reset_index(drop=True)
+
 removed_rows = initial_len - len(df)
 if removed_rows > 0:
     st.warning(f"{removed_rows:,} rows removed due to invalid or isolated Output/Arrival values.")
@@ -45,7 +45,7 @@ if df.empty:
     st.error("No valid data remains after cleaning. Please upload a valid file.")
     st.stop()
 
-# --- Query Functions ---
+# --- Query 1.1a and 1.1b ---
 def match_proximity(df, target_day):
     results = []
     today_rows = df[(df['M Name'] == 0) & (df['Day'] == target_day)]
@@ -67,19 +67,23 @@ def match_proximity(df, target_day):
                     'Output': row['Output'],
                     'Origin New': row['Origin'],
                     'Origin Old': match['Origin'],
-                    'Day': row['Day']
+                    'Day New': row['Day'],
+                    'Day Old': match['Day']
                 })
     return results
 
+# --- Trio Queries ---
 def find_trios(df, target_day):
     trios = []
-    grouped = df[df['Day'] == target_day].groupby('Output')
+    grouped = df.groupby('Output')
     for output, group in grouped:
         rows = group.sort_values('Arrival')
         if len(rows) < 3:
             continue
         for combo in combinations(rows.index, 3):
             trio_df = rows.loc[list(combo)].sort_values('Arrival')
+            if not trio_df.iloc[-1]['Day'].startswith(target_day):
+                continue
             if not trio_df['Origin'].between(800, 1300).any():
                 continue
             m_vals = trio_df['M Name'].abs().tolist()
@@ -96,72 +100,41 @@ def find_trios(df, target_day):
                 'Output': output,
                 'Type': kind,
                 'Origins': trio_df['Origin'].tolist(),
-                'Rows': trio_df.index.tolist()
+                'Rows': trio_df.index.tolist(),
+                'Days': trio_df['Day'].tolist()
             })
     return sorted(trios, key=lambda x: x['Output'], reverse=True)
-
-def query_3x(df, target_day, mname_condition, label):
-    results = []
-    df_day = df[df['Day'] == target_day].dropna(subset=["M Name", "Origin", "Arrival", "Output"])
-    df_sorted = df_day.sort_values("Arrival")
-
-    for idx1, row1 in df_sorted.iterrows():
-        for idx2, row2 in df_sorted.iterrows():
-            if idx1 == idx2:
-                continue
-            if row1["Arrival"] >= row2["Arrival"]:
-                continue
-            m1 = row1["M Name"]
-            m2 = row2["M Name"]
-            if pd.isna(m1) or pd.isna(m2):
-                continue
-            if not mname_condition(m1, m2):
-                continue
-            if (800 <= row1["Origin"] <= 1300) or (800 <= row2["Origin"] <= 1300):
-                results.append({
-                    'Row New': idx2,
-                    'Row Old': idx1,
-                    'Newest Arrival': row2['Arrival'],
-                    'Older Arrival': row1['Arrival'],
-                    'M Newer': m2,
-                    'M Older': m1,
-                    'Output': row1['Output'],
-                    'Origin New': row2['Origin'],
-                    'Origin Old': row1['Origin'],
-                    'Day': row2['Day'],
-                    'Label': label
-                })
-    return results
-
-# --- Run Queries ---
-query_1a = match_proximity(df, "Today [0]")
-query_1b = match_proximity(df, "Yesterday [1]")
-trios_today = find_trios(df, "Today [0]")
-trios_yesterday = find_trios(df, "Yesterday [1]")
-
-query_3_1a = query_3x(df, "Today [0]", lambda x, y: y in [1, -1] and x not in [1, -1], "Query 3.1a - Today #→±1")
-query_3_1b = query_3x(df, "Yesterday [1]", lambda x, y: y in [1, -1] and x not in [1, -1], "Query 3.1b - Yesterday #→±1")
-query_3_2a = query_3x(df, "Today [0]", lambda x, y: x in [1, -1] and y not in [1, -1], "Query 3.2a - Today #→# (≠±1)")
-query_3_2b = query_3x(df, "Yesterday [1]", lambda x, y: x in [1, -1] and y not in [1, -1], "Query 3.2b - Yesterday #→# (≠±1)")
 
 # --- Display Functions ---
 def display_pairs(title, results):
     label = "pair" if len(results) == 1 else "pairs"
     st.subheader(f"{title} — {len(results)} {label}")
-    for i, res in enumerate(results[::-1]):
+    for res in results[::-1]:
         summary = f"At {res['Newest Arrival']} {res['M Older']:.3f} to {res['M Newer']:.3f} @ {res['Output']:,.3f}"
         with st.expander(summary):
             df_pair = pd.DataFrame([
-                [res['Row Old'], res['Older Arrival'], res['M Older'], res['Origin Old'], res['Day']],
-                [res['Row New'], res['Newest Arrival'], res['M Newer'], res['Origin New'], res['Day']]
-            ], columns=["Row", "Arrival", "M Name", "Origin", "Day"])
+                {
+                    "Row": res['Row Old'],
+                    "Arrival": res['Older Arrival'],
+                    "M Name": res['M Older'],
+                    "Origin": res['Origin Old'],
+                    "Day": res['Day Old']
+                },
+                {
+                    "Row": res['Row New'],
+                    "Arrival": res['Newest Arrival'],
+                    "M Name": res['M Newer'],
+                    "Origin": res['Origin New'],
+                    "Day": res['Day New']
+                }
+            ])
             df_pair.index = ["", ""]
             st.write(df_pair)
 
 def display_trios(title, trios):
     label = "trio" if len(trios) == 1 else "trios"
     st.subheader(f"{title} — {len(trios)} {label}")
-    for i, trio in enumerate(trios):
+    for trio in trios:
         arr_str = trio['Arrival'][-1].strftime('%Y-%m-%d %H:%M:%S')
         mvals = trio['M Name']
         summary = f"At {arr_str} {mvals[0]:.3f} to {mvals[1]:.3f} to {mvals[2]:.3f} @ {trio['Output']:,.3f} ({trio['Type']})"
@@ -172,17 +145,19 @@ def display_trios(title, trios):
                 "M Name": trio["M Name"],
                 "Origin": trio["Origins"],
                 "Output": [trio["Output"]] * 3,
-                "Type": [trio["Type"]] * 3
+                "Type": [trio["Type"]] * 3,
+                "Day": trio["Days"]
             })
-            df_trio.index.name = ""
             st.write(df_trio)
+
+# --- Run Queries ---
+query_1a = match_proximity(df, "Today [0]")
+query_1b = match_proximity(df, "Yesterday [1]")
+trios_today = find_trios(df, "Today [0]")
+trios_yesterday = find_trios(df, "Yesterday [1]")
 
 # --- Display Results ---
 display_pairs("Query 1.1a - Today 1→0 Pairs", query_1a)
 display_pairs("Query 1.1b - Yesterday 1→0 Pairs", query_1b)
 display_trios("Query 2.1a - Trios (Today)", trios_today)
 display_trios("Query 2.1b - Trios (Yesterday)", trios_yesterday)
-display_pairs("Query 3.1a - Today #→±1", query_3_1a)
-display_pairs("Query 3.1b - Yesterday #→±1", query_3_1b)
-display_pairs("Query 3.2a - Today #→# (≠±1)", query_3_2a)
-display_pairs("Query 3.2b - Yesterday #→# (≠±1)", query_3_2b)
