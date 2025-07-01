@@ -160,20 +160,20 @@ def display_pairs(title, results):
     st.subheader(f"{title} — {len(results)} {label}")
     for i, res in enumerate(results):
         summary = f"At {res['Newest Arrival']} {res['M Older']:.3f} to {res['M Newer']:.3f} @ {res['Output']:,.3f}"
-try:    
-    input_val = df.loc[res['Row New']]['Input']
-    diff = res['Output'] - input_val
-    abs_diff = abs(diff)
-    if abs_diff < 4:
-        color = '#d3d3d3'  # Light gray
-    elif diff >= 4:
-        color = '#ffc1c1'  # Light red
-    elif diff <= -4:
-        color = '#cde2ff'  # Light blue
-    else:
-        color = None
+    try:
+        input_val = df.loc[res['Row New']]['Input']
+        diff = res['Output'] - input_val
+        abs_diff = abs(diff)
+        if abs_diff < 4:
+            color = '#d3d3d3'  # Light gray
+        elif diff >= 4:
+            color = '#ffc1c1'  # Light red
+        elif diff <= -4:
+            color = '#cde2ff'  # Light blue
+        else:
+            color = None
     except:
-    color = None
+        color = None
 # Style + Summary line BEFORE the expander itself
     if color:
         st.markdown(f"""
