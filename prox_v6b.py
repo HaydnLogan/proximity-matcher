@@ -185,13 +185,45 @@ def display_pairs(title, results):
         st.markdown(f"**{summary}**")
 
     # Now open the expander AFTER that styled line
-        with st.expander("", expanded=False):
-            df_pair = pd.DataFrame([
-                [res['Row Old'], res['Older Arrival'], res['M Older'], res['Origin Old'], res['Day']],
-                [res['Row New'], res['Newest Arrival'], res['M Newer'], res['Origin New'], res['Day']]
-            ], columns=["Row", "Arrival", "M Name", "Origin", "Day"])
-            df_pair.index = ["", ""]
-            st.write(df_pair)
+    with st.expander(summary):
+        # color logic from before:
+        try:
+            input_val = df.loc[res['Row New']]['Input']
+            diff = res['Output'] - input_val
+            abs_diff = abs(diff)
+            if abs_diff < 4:
+                color = '#d3d3d3'
+            elif diff >= 4:
+                color = '#ffc1c1'
+            elif diff <= -4:
+                color = '#cde2ff'
+            else:
+                color = None
+        except:
+            color = None
+
+    # now write a colored header *inside* the expander
+        if color:
+            st.markdown(
+                f"<div style='background-color:{color}; padding:6px; border-radius:4px; font-weight:bold'>"
+                f"⚠️ Output/Input Δ = {diff:+.3f}</div>",
+                unsafe_allow_html=True
+            )
+
+    # display the paired DataFrame
+        df_pair = pd.DataFrame([
+            [res['Row Old'], res['Older Arrival'], res['M Older'], res['Origin Old'], res['Day']],
+            [res['Row New'], res['Newest Arrival'], res['M Newer'], res['Origin New'], res['Day']]
+        ], columns=["Row", "Arrival", "M Name", "Origin", "Day"])
+        df_pair.index = ["", ""]
+        st.write(df_pair)
+#        with st.expander("", expanded=False):
+#            df_pair = pd.DataFrame([
+#                [res['Row Old'], res['Older Arrival'], res['M Older'], res['Origin Old'], res['Day']],
+#                [res['Row New'], res['Newest Arrival'], res['M Newer'], res['Origin New'], res['Day']]
+#            ], columns=["Row", "Arrival", "M Name", "Origin", "Day"])
+#            df_pair.index = ["", ""]
+#            st.write(df_pair)
 
 def display_trios(title, trios):
     label = "trio" if len(trios) == 1 else "trios"
