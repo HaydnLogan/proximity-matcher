@@ -158,7 +158,7 @@ def query_3_2_pairs(df, day_filter, exclude_ids):
 def display_pairs(title, results):
     label = "pair" if len(results) == 1 else "pairs"
     st.subheader(f"{title} — {len(results)} {label}")
-    for i, res in enumerate(results[::-1]):
+    for i, res in enumerate(results):
         summary = f"At {res['Newest Arrival']} {res['M Older']:.3f} to {res['M Newer']:.3f} @ {res['Output']:,.3f}"
         with st.expander(summary):
             df_pair = pd.DataFrame([
