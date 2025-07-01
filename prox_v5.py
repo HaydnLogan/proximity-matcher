@@ -3,7 +3,7 @@ import pandas as pd
 from itertools import combinations
 
 st.set_page_config(layout="wide")
-st.title("Proximity & Trio Match Analyzer v5")
+st.title("Proximity & Trio Match Analyzer v5 q1→2")
 
 # --- File Upload ---
 uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
