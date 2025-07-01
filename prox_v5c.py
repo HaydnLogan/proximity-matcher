@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("Proximity Match Analyzer - Query 3.1 Only")
+st.title("Proximity Match Analyzer v5c - Query 3.1 Only")
 
 # --- File Upload ---
 uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
