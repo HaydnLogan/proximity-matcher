@@ -1,102 +1,85 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+from itertools import combinations
 
-st.set_page_config(page_title="Proximity Match Analyzer", layout="wide")
+st.set_page_config(page_title="Proximity Match Finder", layout="wide")
+st.title("🔍 Proximity Match Finder (Pairs & Trios)")
 
-st.title("🔍 Proximity & Trio Match Analyzer")
+uploaded_file = st.file_uploader("📁 Upload your CSV", type=["csv"])
 
-# Upload CSV
-uploaded_file = st.file_uploader("Upload your dataset CSV", type="csv")
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
+    df.columns = df.columns.str.strip()
 
-    # Convert columns to proper types
+    # Parse relevant columns
     df['Arrival'] = pd.to_datetime(df['Arrival'], errors='coerce')
     df['Output'] = pd.to_numeric(df['Output'], errors='coerce')
-    df['M #'] = pd.to_numeric(df['M #'], errors='coerce')
+    df['M Name'] = pd.to_numeric(df['M Name'], errors='coerce')
     df['Origin'] = pd.to_numeric(df['Origin'], errors='coerce')
+    df['Day'] = df['Day'].astype(str).str.strip().str.lower()
 
-    # Filter for Origin range
-    min_origin = st.slider("Minimum Origin", 0, 3000, 800)
-    max_origin = st.slider("Maximum Origin", 0, 3000, 1300)
+    # Filter options
+    origin_min, origin_max = 800, 1300
+    filter_origin = st.checkbox("✅ Require at least one Origin between 800 and 1300", value=True)
+    run_pairs = st.checkbox("🔗 Run Pair Match Query", value=True)
+    run_trios = st.checkbox("🔺 Run Trio Match Query", value=True)
 
-    st.markdown("---")
+    origin_check = lambda *rows: any(origin_min <= row['Origin'] <= origin_max for row in rows) if filter_origin else True
 
-    # ------------------
-    # Query 1: 0 Proximity Pair
-    # ------------------
-    st.header("📌 Query 1: 0.0 Proximity Match Pairs")
+    if run_pairs:
+        st.subheader("🔗 0.0 Proximity Matched Pairs")
 
-    zero_rows = df[(df['M #'] == 0) & (df['Day'].str.strip().str.lower() == 'today')]
-    match_rows = df[df['M #'].isin([1, -1])]
+        is_today = df['Day'].str.contains(r'\[0\]')
+        zero_rows = df[(df['M Name'] == 0) & is_today]
+        match_rows = df[df['M Name'].isin([1, -1])]
 
-    match_pairs = []
+        match_pairs = []
+        for _, zrow in zero_rows.iterrows():
+            for _, mrow in match_rows.iterrows():
+                if (
+                    zrow['Output'] == mrow['Output'] and
+                    mrow['Arrival'] < zrow['Arrival'] and
+                    origin_check(zrow, mrow)
+                ):
+                    match_pairs.append((zrow, mrow))
 
-    for _, zero_row in zero_rows.iterrows():
-        for _, match_row in match_rows.iterrows():
-            if (
-                zero_row['Output'] == match_row['Output'] and
-                match_row['Arrival'] < zero_row['Arrival'] and
-                (min_origin <= zero_row['Origin'] <= max_origin or min_origin <= match_row['Origin'] <= max_origin)
-            ):
-                match_pairs.append((zero_row, match_row))
+        st.success(f"Found {len(match_pairs)} matched pair(s).")
+        for idx, (r1, r2) in enumerate(match_pairs):
+            with st.expander(f"Match {idx+1}"):
+                st.write("🔹 **Row 1 (M Name = 0)**")
+                st.write(r1)
+                st.write("🔹 **Row 2 (M Name = ±1)**")
+                st.write(r2)
 
-    st.write(f"Found **{len(match_pairs)}** matched pairs")
-    for z, m in match_pairs:
-        st.write("---")
-        st.write("🔹 Zero Row:")
-        st.dataframe(pd.DataFrame([z]))
-        st.write("🔸 Matched Row (±1):")
-        st.dataframe(pd.DataFrame([m]))
+    if run_trios:
+        st.subheader("🔺 Matched Trios")
 
-    # ------------------
-    # Query 2: Trios
-    # ------------------
-    st.header("🔁 Query 2: Ascending/Descending Trios")
+        def is_valid_trio(trio):
+            mnames = [abs(r['M Name']) for r in trio]
+            arrivals = [r['Arrival'] for r in trio]
+            if len(set(r['Output'] for r in trio)) > 1:
+                return False
 
-    df_today = df[df['Day'].str.strip().str.lower() == 'today']
+            m_order = sorted(zip(mnames, arrivals), key=lambda x: x[0])
+            sorted_arrivals = [a for _, a in m_order]
 
-    # Group by Output
-    output_groups = df.groupby('Output')
-    trio_results = []
+            is_ascending = sorted_arrivals == sorted(sorted_arrivals)
+            is_descending = sorted_arrivals == sorted(sorted_arrivals, reverse=True)
+            newest_row = max(trio, key=lambda r: r['Arrival'])
+            is_today = '[0]' in newest_row['Day']
+            return (is_ascending or is_descending) and is_today and origin_check(*trio)
 
-    for output_val, group in output_groups:
-        if len(group) < 3:
-            continue
+        trios_found = []
+        for _, group in df.groupby('Output'):
+            if len(group) >= 3:
+                for trio in combinations(group.to_dict('records'), 3):
+                    if is_valid_trio(trio):
+                        trios_found.append(trio)
 
-        # All combinations of 3 rows with same Output
-        group_sorted = group.sort_values('Arrival')
-        for i in range(len(group_sorted) - 2):
-            trio = group_sorted.iloc[i:i+3]
-            arrival_order = list(trio['Arrival'])
-            m_values = list(trio['M #'].abs())
-
-            # Check if one row is from today
-            if 'today' not in [str(x).strip().lower() for x in trio['Day']]:
-                continue
-
-            # Check Origin filter
-            if not any((min_origin <= x <= max_origin) for x in trio['Origin']):
-                continue
-
-            # Ascending or Descending check
-            m_sorted = sorted(m_values)
-            if m_values == m_sorted:
-                trio_type = 'Ascending Trio'
-            elif m_values == m_sorted[::-1]:
-                trio_type = 'Descending Trio'
-            else:
-                continue
-
-            # Special if middle is negative
-            middle_val = trio.iloc[1]['M #']
-            special = 'Special ' if middle_val < 0 else ''
-
-            trio_results.append((special + trio_type, trio))
-
-    st.write(f"Found **{len(trio_results)}** matched trios")
-    for trio_type, trio_df in trio_results:
-        st.write(f"### {trio_type}")
-        st.dataframe(trio_df)
-        st.write("---")
+        st.success(f"Found {len(trios_found)} matched trio(s).")
+        for idx, trio in enumerate(trios_found):
+            with st.expander(f"Trio {idx+1}"):
+                for i, row in enumerate(sorted(trio, key=lambda r: r['Arrival'])):
+                    st.write(f"🔸 Row {i+1}")
+                    st.write(row)
