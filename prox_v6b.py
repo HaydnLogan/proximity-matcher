@@ -175,14 +175,14 @@ def display_pairs(title, results):
 #    except:
 #        color = None
 # Style + Summary line BEFORE the expander itself
-    if color:
-        st.markdown(f"""
-        <div style='background-color:{color}; padding:8px; border-radius:6px; font-weight:bold'>
-            At {res['Newest Arrival']} {res['M Older']:.3f} to {res['M Newer']:.3f} @ {res['Output']:,.3f}
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown(f"**{summary}**")
+#    if color:
+#        st.markdown(f"""
+#        <div style='background-color:{color}; padding:8px; border-radius:6px; font-weight:bold'>
+#            At {res['Newest Arrival']} {res['M Older']:.3f} to {res['M Newer']:.3f} @ {res['Output']:,.3f}
+#        </div>
+#        """, unsafe_allow_html=True)
+#    else:
+#        st.markdown(f"**{summary}**")
 
     # Now open the expander AFTER that styled line
     with st.expander(summary):
