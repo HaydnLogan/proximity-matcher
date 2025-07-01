@@ -33,12 +33,11 @@ def query_3_1_pairs(df, day_filter):
             (df['Arrival'] < target['Arrival']) &
             (df.index != idx)
         ]
-        for _, match in potential_matches.iterrows():
+        for m_idx, match in potential_matches.iterrows():
             if match['M Name'] in [1.0, -1.0]:
                 continue
             if (800 <= match['Origin'] <= 1300) or (800 <= target['Origin'] <= 1300):
                 results.append({
-                    'Summary': f"At {target['Arrival']} {match['M Name']:.3f} to {target['M Name']:.3f} @ {target['Output']:.3f}",
                     'Newest Arrival': target['Arrival'],
                     'Older Arrival': match['Arrival'],
                     'M Newer': target['M Name'],
@@ -47,20 +46,39 @@ def query_3_1_pairs(df, day_filter):
                     'Origin New': target['Origin'],
                     'Origin Old': match['Origin'],
                     'Day New': target['Day'],
-                    'Day Old': match['Day']
+                    'Day Old': match['Day'],
+                    'Row New': idx,
+                    'Row Old': m_idx,
+                    'Summary': f"At {target['Arrival']} {match['M Name']:.3f} → {target['M Name']:.3f} @ {target['Output']:.3f}"
                 })
     return results
 
-# --- Run Queries ---
-query_3_1a = query_3_1_pairs(df, "Today [0]")
-query_3_1b = query_3_1_pairs(df, "Yesterday [1]")
-
-# --- Display ---
+# --- Display Results ---
 def display_pairs(title, results):
     st.subheader(f"{title} — {len(results)} pair{'s' if len(results) != 1 else ''}")
     for i, r in enumerate(results):
         with st.expander(f"{i+1}. {r['Summary']}"):
-            st.write(pd.DataFrame([r]).T)
+            detail_df = pd.DataFrame([
+                {
+                    "Row": r['Row Old'],
+                    "Arrival": r['Older Arrival'],
+                    "M Name": r['M Older'],
+                    "Origin": r['Origin Old'],
+                    "Day": r['Day Old']
+                },
+                {
+                    "Row": r['Row New'],
+                    "Arrival": r['Newest Arrival'],
+                    "M Name": r['M Newer'],
+                    "Origin": r['Origin New'],
+                    "Day": r['Day New']
+                }
+            ])
+            st.dataframe(detail_df, use_container_width=True)
+
+# --- Run and Display ---
+query_3_1a = query_3_1_pairs(df, "Today [0]")
+query_3_1b = query_3_1_pairs(df, "Yesterday [1]")
 
 display_pairs("Query 3.1a - Today #→±1", query_3_1a)
 display_pairs("Query 3.1b - Yesterday #→±1", query_3_1b)
