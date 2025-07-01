@@ -68,7 +68,7 @@ def find_trios(df, target_day):
             continue
         for combo in combinations(rows.index, 3):
             trio_df = rows.loc[list(combo)].sort_values('Arrival')
-            if not trio_df.iloc[-1]['Day'].startswith(target_day):
+            if not all(trio_df['Day'] == target_day):
                 continue
             if not trio_df['Origin'].between(800, 1300).any():
                 continue
@@ -96,9 +96,9 @@ def query_3_matches(df, day_filter, first_m, second_m):
     first_rows = filtered[filtered['M Name'] == first_m]
     for idx, row in first_rows.iterrows():
         others = filtered[
-            (df['M Name'] == second_m) &
-            (df['Arrival'] < row['Arrival']) &
-            (df['Output'] == row['Output'])
+            (filtered['M Name'] == second_m) &
+            (filtered['Arrival'] < row['Arrival']) &
+            (filtered['Output'] == row['Output'])
         ]
         for jdx, match in others.iterrows():
             if (800 <= row['Origin'] <= 1300) or (800 <= match['Origin'] <= 1300):
@@ -119,12 +119,12 @@ def query_3_matches(df, day_filter, first_m, second_m):
 # --- Run Queries ---
 query_1a = match_proximity(df, "Today [0]")
 query_1b = match_proximity(df, "Yesterday [1]")
-query_3_1a = query_3_matches(df, "Today [0]", 1, 0)
-query_3_1b = query_3_matches(df, "Yesterday [1]", 1, 0)
-query_3_2a = query_3_matches(df, "Today [0]", 0, 1)
-query_3_2b = query_3_matches(df, "Yesterday [1]", 0, 1)
 trios_today = find_trios(df, "Today [0]")
 trios_yesterday = find_trios(df, "Yesterday [1]")
+query_3_1a = query_3_matches(df, "Today [0]", 1, 0)
+query_3_1b = query_3_matches(df, "Yesterday [1]", 1, 0)
+query_3_2a = query_3_matches(df, "Today [0]", -1, 0)
+query_3_2b = query_3_matches(df, "Yesterday [1]", -1, 0)
 
 # --- Display Functions ---
 def display_pairs(title, results):
@@ -164,7 +164,7 @@ display_pairs("Query 1.1a - Today 1→0 Pairs", query_1a)
 display_pairs("Query 1.1b - Yesterday 1→0 Pairs", query_1b)
 display_trios("Query 2.1a - Trios (Today)", trios_today)
 display_trios("Query 2.1b - Trios (Yesterday)", trios_yesterday)
-display_pairs("Query 3.1a - Today M1 before M0", query_3_1a)
-display_pairs("Query 3.1b - Yesterday M1 before M0", query_3_1b)
-display_pairs("Query 3.2a - Today M0 before M1", query_3_2a)
-display_pairs("Query 3.2b - Yesterday M0 before M1", query_3_2b)
+display_pairs("Query 3.1a - M1 before M0 (Today)", query_3_1a)
+display_pairs("Query 3.1b - M1 before M0 (Yesterday)", query_3_1b)
+display_pairs("Query 3.2a - M-1 before M0 (Today)", query_3_2a)
+display_pairs("Query 3.2b - M-1 before M0 (Yesterday)", query_3_2b)
