@@ -10,8 +10,27 @@ if not uploaded_file:
     st.stop()
 
 df = pd.read_csv(uploaded_file)
-df['Arrival'] = pd.to_datetime(df['Arrival'])
-df['Departure'] = pd.to_datetime(df['Departure'])
+
+# Safe conversion of Arrival and Departure to datetime
+for col in ['Arrival', 'Departure']:
+    if col in df.columns:
+        df[col] = pd.to_datetime(df[col], errors='coerce')
+    else:
+        st.error(f"Missing expected column: {col}")
+        st.stop()
+
+# Convert Output to numeric (in case it's read as string)
+df['Output'] = pd.to_numeric(df['Output'], errors='coerce')
+
+# Drop rows with missing Arrival or Output
+initial_len = len(df)
+df = df.dropna(subset=['Arrival', 'Output'])
+filtered_len = len(df)
+
+# Optional: notify user of dropped rows
+removed_rows = initial_len - filtered_len
+if removed_rows > 0:
+    st.warning(f"{removed_rows} rows were removed due to invalid Arrival or Output values.")
 
 # --- Query Functions ---
 def proximity_pairs(df, day_filter, mname_0_target=0, mname_1_targets=[1, -1]):
