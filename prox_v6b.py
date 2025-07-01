@@ -158,47 +158,43 @@ def query_3_2_pairs(df, day_filter, exclude_ids):
 def display_pairs(title, results):
     label = "pair" if len(results) == 1 else "pairs"
     st.subheader(f"{title} — {len(results)} {label}")
+
     for i, res in enumerate(results):
         summary = f"At {res['Newest Arrival']} {res['M Older']:.3f} to {res['M Newer']:.3f} @ {res['Output']:,.3f}"
-    with st.expander(summary):
-        # color logic from before:
-        try:
-            input_val = df.loc[res['Row New']]['Input']
-            diff = res['Output'] - input_val
-            abs_diff = abs(diff)
-            if abs_diff < 4:
-                color = '#d3d3d3'
-            elif diff >= 4:
-                color = '#ffc1c1'
-            elif diff <= -4:
-                color = '#cde2ff'
-            else:
+
+        with st.expander(summary):
+            # 🔍 Color logic inside the loop
+            try:
+                input_val = df.loc[res['Row New']]['Input']
+                diff = res['Output'] - input_val
+                abs_diff = abs(diff)
+                if abs_diff < 4:
+                    color = '#d3d3d3'
+                elif diff >= 4:
+                    color = '#ffc1c1'
+                elif diff <= -4:
+                    color = '#cde2ff'
+                else:
+                    color = None
+            except:
                 color = None
-        except:
-            color = None
 
-    # now write a colored header *inside* the expander
-        if color:
-            st.markdown(
-                f"<div style='background-color:{color}; padding:6px; border-radius:4px; font-weight:bold'>"
-                f"⚠️ Output/Input Δ = {diff:+.3f}</div>",
-                unsafe_allow_html=True
-            )
+            # 🎨 Show colored diff bar inside expander
+            if color:
+                st.markdown(
+                    f"<div style='background-color:{color}; padding:6px; border-radius:4px; font-weight:bold'>"
+                    f"⚠️ Output/Input Δ = {diff:+.3f}</div>",
+                    unsafe_allow_html=True
+                )
 
-    # display the paired DataFrame
+            # 🗂 Table of matched pair
             df_pair = pd.DataFrame([
                 [res['Row Old'], res['Older Arrival'], res['M Older'], res['Origin Old'], res['Day']],
                 [res['Row New'], res['Newest Arrival'], res['M Newer'], res['Origin New'], res['Day']]
             ], columns=["Row", "Arrival", "M Name", "Origin", "Day"])
             df_pair.index = ["", ""]
             st.write(df_pair)
-#        with st.expander("", expanded=False):
-#            df_pair = pd.DataFrame([
-#                [res['Row Old'], res['Older Arrival'], res['M Older'], res['Origin Old'], res['Day']],
-#                [res['Row New'], res['Newest Arrival'], res['M Newer'], res['Origin New'], res['Day']]
-#            ], columns=["Row", "Arrival", "M Name", "Origin", "Day"])
-#            df_pair.index = ["", ""]
-#            st.write(df_pair)
+
 
 def display_trios(title, trios):
     label = "trio" if len(trios) == 1 else "trios"
