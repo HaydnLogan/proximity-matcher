@@ -53,7 +53,6 @@ def query_3_1_pairs(df, day_filter):
                 })
     return results
 
-# --- Display Results ---
 def display_pairs(title, results):
     st.subheader(f"{title} — {len(results)} pair{'s' if len(results) != 1 else ''}")
     for i, r in enumerate(results):
@@ -73,7 +72,7 @@ def display_pairs(title, results):
                     "Origin": r['Origin New'],
                     "Day": r['Day New']
                 }
-            ])
+            ])[["Row", "Arrival", "M Name", "Origin", "Day"]]  # enforce column order
             st.dataframe(detail_df, use_container_width=True)
 
 # --- Run and Display ---
