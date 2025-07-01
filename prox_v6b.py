@@ -160,7 +160,8 @@ def display_pairs(title, results):
     st.subheader(f"{title} — {len(results)} {label}")
     for i, res in enumerate(results):
         summary = f"At {res['Newest Arrival']} {res['M Older']:.3f} to {res['M Newer']:.3f} @ {res['Output']:,.3f}"
-        input_val = df.loc[res['Row New']]['Input']
+try:    
+    input_val = df.loc[res['Row New']]['Input']
     diff = res['Output'] - input_val
     abs_diff = abs(diff)
     if abs_diff < 4:
