@@ -112,7 +112,8 @@ def query_3_1_pairs(df, day_filter):
                     'Origin Old': match['Origin'],
                     'Day': one['Day']
                 })
-    return results
+    return sorted(results, key=lambda r: r['Output'], reverse=True)
+ 
 
 def get_used_pair_ids(*queries):
     ids = set()
@@ -150,7 +151,8 @@ def query_3_2_pairs(df, day_filter, exclude_ids):
                     'Origin Old': match['Origin'],
                     'Day': row['Day']
                 })
-    return results
+    return sorted(results, key=lambda r: r['Output'], reverse=True)
+    
 
 # --- Display Functions ---
 def display_pairs(title, results):
