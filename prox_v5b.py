@@ -12,7 +12,7 @@ if not uploaded_file:
 
 df = pd.read_csv(uploaded_file)
 
-# --- Data Cleanup ---
+# Convert columns
 for col in ['Arrival', 'Departure']:
     if col in df.columns:
         df[col] = pd.to_datetime(df[col], errors='coerce')
@@ -22,17 +22,19 @@ df['Output'] = pd.to_numeric(df['Output'], errors='coerce')
 df['Origin'] = pd.to_numeric(df['Origin'], errors='coerce')
 df['Day'] = df['Day'].astype(str)
 
+# Drop invalid rows
 initial_len = len(df)
 df = df.dropna(subset=['Arrival', 'Output'])
-df = df[df['Output'] > 0]
+df = df[df['Output'] > 0]  # Remove rows with Output <= 0
 
-# Remove rows where Output is not equal to neighbor row Outputs
-df = df.sort_values(by='Arrival').reset_index(drop=True)
-mask = (df['Output'].shift(1) == df['Output']) | (df['Output'].shift(-1) == df['Output'])
-df = df[mask].copy()
+# Remove rows with unique Outputs (not matching prev or next)
+df = df.sort_values('Arrival')
+df['Output_prev'] = df['Output'].shift(1)
+df['Output_next'] = df['Output'].shift(-1)
+df = df[(df['Output'] == df['Output_prev']) | (df['Output'] == df['Output_next'])]
+df = df.drop(columns=['Output_prev', 'Output_next'])
 filtered_len = len(df)
 removed_rows = initial_len - filtered_len
-
 if removed_rows > 0:
     st.warning(f"{removed_rows:,} rows removed due to invalid or isolated Output values.")
 if df.empty:
@@ -96,51 +98,43 @@ def find_trios(df, target_day):
             })
     return sorted(trios, key=lambda x: x['Output'], reverse=True)
 
-def series_3_matches(df, target_day, pair_type):
+def query_3x(df, target_day, mname_condition, target_m, label):
     results = []
-    is_today = df['Day'] == target_day
-    df_filtered = df[is_today]
-    for idx_a, row_a in df_filtered.iterrows():
-        for idx_b, row_b in df.iterrows():
-            if idx_a == idx_b or row_a['Output'] != row_b['Output']:
+    df_day = df[df['Day'] == target_day]
+    df_sorted = df_day.sort_values('Arrival')
+
+    for idx1, row1 in df_sorted.iterrows():
+        for idx2, row2 in df_sorted.iterrows():
+            if row1['Arrival'] >= row2['Arrival']:
                 continue
-            if pair_type == "3.1":
-                cond_mname = (row_a['M Name'] in [1.0, -1.0]) != (row_b['M Name'] in [1.0, -1.0])
-            else:  # pair_type == "3.2"
-                cond_mname = (row_a['M Name'] not in [1.0, -1.0]) and (row_b['M Name'] not in [1.0, -1.0])
-            if not cond_mname:
+            if not mname_condition(row1['M Name'], row2['M Name']):
                 continue
-            if row_a['Arrival'] < row_b['Arrival']:
-                newer, older = row_b, row_a
-                idx_new, idx_old = idx_b, idx_a
-            else:
-                newer, older = row_a, row_b
-                idx_new, idx_old = idx_a, idx_b
-            if not (800 <= newer['Origin'] <= 1300 or 800 <= older['Origin'] <= 1300):
-                continue
-            results.append({
-                'Row New': idx_new,
-                'Row Old': idx_old,
-                'Newest Arrival': newer['Arrival'],
-                'Older Arrival': older['Arrival'],
-                'M Newer': newer['M Name'],
-                'M Older': older['M Name'],
-                'Output': newer['Output'],
-                'Origin New': newer['Origin'],
-                'Origin Old': older['Origin'],
-                'Day': newer['Day']
-            })
+            if (800 <= row1['Origin'] <= 1300) or (800 <= row2['Origin'] <= 1300):
+                results.append({
+                    'Row New': idx2,
+                    'Row Old': idx1,
+                    'Newest Arrival': row2['Arrival'],
+                    'Older Arrival': row1['Arrival'],
+                    'M Newer': row2['M Name'],
+                    'M Older': row1['M Name'],
+                    'Output': row1['Output'],
+                    'Origin New': row2['Origin'],
+                    'Origin Old': row1['Origin'],
+                    'Day': row2['Day'],
+                    'Label': label
+                })
     return results
 
-# --- Run Queries ---
+# --- Query Logic ---
 query_1a = match_proximity(df, "Today [0]")
 query_1b = match_proximity(df, "Yesterday [1]")
 trios_today = find_trios(df, "Today [0]")
 trios_yesterday = find_trios(df, "Yesterday [1]")
-query_3_1a = series_3_matches(df, "Today [0]", "3.1")
-query_3_1b = series_3_matches(df, "Yesterday [1]", "3.1")
-query_3_2a = series_3_matches(df, "Today [0]", "3.2")
-query_3_2b = series_3_matches(df, "Yesterday [1]", "3.2")
+
+query_3_1a = query_3x(df, "Today [0]", lambda x, y: y in [1, -1] and x not in [1, -1], "Query 3.1a - Today #→±1")
+query_3_1b = query_3x(df, "Yesterday [1]", lambda x, y: y in [1, -1] and x not in [1, -1], "Query 3.1b - Yesterday #→±1")
+query_3_2a = query_3x(df, "Today [0]", lambda x, y: y not in [1, -1] and x in [1, -1], "Query 3.2a - Today #→# (≠±1)")
+query_3_2b = query_3x(df, "Yesterday [1]", lambda x, y: y not in [1, -1] and x in [1, -1], "Query 3.2b - Yesterday #→# (≠±1)")
 
 # --- Display Functions ---
 def display_pairs(title, results):
