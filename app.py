@@ -12,14 +12,14 @@ if uploaded_file:
     df = pd.read_csv(uploaded_file)
     df.columns = df.columns.str.strip()
 
-    # Parse relevant columns
+    # Parse and clean columns
     df['Arrival'] = pd.to_datetime(df['Arrival'], errors='coerce')
     df['Output'] = pd.to_numeric(df['Output'], errors='coerce')
     df['M Name'] = pd.to_numeric(df['M Name'], errors='coerce')
     df['Origin'] = pd.to_numeric(df['Origin'], errors='coerce')
     df['Day'] = df['Day'].astype(str).str.strip().str.lower()
 
-    # Filter options
+    # Options
     origin_min, origin_max = 800, 1300
     filter_origin = st.checkbox("✅ Require at least one Origin between 800 and 1300", value=True)
     run_pairs = st.checkbox("🔗 Run Pair Match Query", value=True)
@@ -45,12 +45,20 @@ if uploaded_file:
                     match_pairs.append((zrow, mrow))
 
         st.success(f"Found {len(match_pairs)} matched pair(s).")
+
         for idx, (r1, r2) in enumerate(match_pairs):
-            with st.expander(f"Match {idx+1}"):
-                st.write("🔹 **Row 1 (M Name = 0)**")
-                st.write(r1)
-                st.write("🔹 **Row 2 (M Name = ±1)**")
-                st.write(r2)
+            newer = r1 if r1['Arrival'] > r2['Arrival'] else r2
+            older = r2 if newer is r1 else r1
+            label = f"At {newer['Arrival'].strftime('%-m/%-d/%Y %H:%M')} {older['M Name']:.3f} to {newer['M Name']:.3f} @ {newer['Output']:.3f}"
+
+            with st.expander(f"Match {idx+1}: {label}"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write("🔹 **Older Row**")
+                    st.dataframe(older.to_frame().T)
+                with col2:
+                    st.write("🔹 **Newer Row**")
+                    st.dataframe(newer.to_frame().T)
 
     if run_trios:
         st.subheader("🔺 Matched Trios")
@@ -78,8 +86,18 @@ if uploaded_file:
                         trios_found.append(trio)
 
         st.success(f"Found {len(trios_found)} matched trio(s).")
+
         for idx, trio in enumerate(trios_found):
-            with st.expander(f"Trio {idx+1}"):
-                for i, row in enumerate(sorted(trio, key=lambda r: r['Arrival'])):
-                    st.write(f"🔸 Row {i+1}")
-                    st.write(row)
+            trio_sorted = sorted(trio, key=lambda r: r['Arrival'])
+            newest = max(trio, key=lambda r: r['Arrival'])
+
+            label = f"At {newest['Arrival'].strftime('%-m/%-d/%Y %H:%M')} " \
+                    f"{trio_sorted[0]['M Name']:.3f} to {trio_sorted[1]['M Name']:.3f} to {trio_sorted[2]['M Name']:.3f} @ {newest['Output']:.3f}"
+
+            with st.expander(f"Trio {idx+1}: {label}"):
+                col1, col2, col3 = st.columns(3)
+                for i, col in enumerate([col1, col2, col3]):
+                    with col:
+                        st.write(f"🔸 Row {i+1}")
+                        st.dataframe(trio_sorted[i])
+
