@@ -140,3 +140,9 @@ def find_trios(df, day_filter):
                 'Type': kind,
                 'Output': output,
                 'Rows': trio_df.index.tolist(),
+                'Arrivals': trio_df['Arrival'].tolist(),
+                'M Names': m_vals_actual,
+                'Origins': trio_df['Origin'].tolist()
+            })
+    return sorted(trios, key=lambda x: x['Output'], reverse=True)
+
