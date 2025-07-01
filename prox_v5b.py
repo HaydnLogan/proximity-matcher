@@ -5,37 +5,49 @@ from itertools import combinations
 st.set_page_config(layout="wide")
 st.title("Proximity & Trio Match Analyzer")
 
+# --- File Upload ---
 uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
 if not uploaded_file:
     st.stop()
 
 df = pd.read_csv(uploaded_file)
 
-# Convert types safely
-df['Arrival'] = pd.to_datetime(df['Arrival'], errors='coerce')
+# Convert columns
+for col in ['Arrival', 'Departure']:
+    if col in df.columns:
+        df[col] = pd.to_datetime(df[col], errors='coerce')
+
 df['M Name'] = pd.to_numeric(df['M Name'], errors='coerce')
 df['Output'] = pd.to_numeric(df['Output'], errors='coerce')
 df['Origin'] = pd.to_numeric(df['Origin'], errors='coerce')
 df['Day'] = df['Day'].astype(str)
 
-# Drop invalid rows
+# Drop rows with missing Arrival or Output
 initial_len = len(df)
 df = df.dropna(subset=['Arrival', 'Output'])
-removed_rows = initial_len - len(df)
+filtered_len = len(df)
+removed_rows = initial_len - filtered_len
 if removed_rows > 0:
-    st.warning(f"{removed_rows} rows removed due to invalid Arrival or Output values.")
+    st.warning(f"{removed_rows:,} rows removed due to invalid Arrival or Output values.")
+if df.empty:
+    st.error("No valid data remains after cleaning. Please upload a valid file.")
+    st.stop()
 
-# ---------- Query Functions ----------
-def proximity_pairs(df, day_filter):
+# --- Helper Functions ---
+def match_proximity(df, target_day):
     results = []
-    for idx, row in df[(df['M Name'] == 0) & (df['Day'] == day_filter)].iterrows():
-        candidates = df[(df['Output'] == row['Output']) & (df['M Name'].isin([1, -1])) & (df['Arrival'] < row['Arrival'])]
-        for c_idx, match in candidates.iterrows():
+    today_rows = df[(df['M Name'] == 0) & (df['Day'] == target_day)]
+    for idx, row in today_rows.iterrows():
+        matches = df[
+            (df['Output'] == row['Output']) &
+            (df['M Name'].isin([1, -1])) &
+            (df['Arrival'] < row['Arrival'])
+        ]
+        for midx, match in matches.iterrows():
             if (800 <= row['Origin'] <= 1300) or (800 <= match['Origin'] <= 1300):
                 results.append({
-                    'Summary': f"At {row['Arrival']} {match['M Name']:.3f} to {row['M Name']:.3f} @ {row['Output']:,.3f}",
                     'Row New': idx,
-                    'Row Old': c_idx,
+                    'Row Old': midx,
                     'Newest Arrival': row['Arrival'],
                     'Older Arrival': match['Arrival'],
                     'M Newer': row['M Name'],
@@ -47,157 +59,112 @@ def proximity_pairs(df, day_filter):
                 })
     return results
 
-def query_3_1_pairs(df, day_filter):
-    results = []
-    df_day = df[df['Day'] == day_filter]
-    ones = df_day[df_day['M Name'] == 1.0]
-    for idx, one_row in ones.iterrows():
-        pre_arrivals = df_day[(df_day['Arrival'] < one_row['Arrival']) & (df_day.index != idx)]
-        for other_idx, other in pre_arrivals.iterrows():
-            if (800 <= one_row['Origin'] <= 1300) or (800 <= other['Origin'] <= 1300):
-                results.append({
-                    'Summary': f"At {one_row['Arrival']} {other['M Name']:.3f} to {one_row['M Name']:.3f} @ {one_row['Output']:,.3f}",
-                    'Row New': idx,
-                    'Row Old': other_idx,
-                    'Newest Arrival': one_row['Arrival'],
-                    'Older Arrival': other['Arrival'],
-                    'M Newer': one_row['M Name'],
-                    'M Older': other['M Name'],
-                    'Output': one_row['Output'],
-                    'Origin New': one_row['Origin'],
-                    'Origin Old': other['Origin'],
-                    'Day': one_row['Day']
-                })
-    return results
+def find_trios(df, target_day):
+    trios = []
+    grouped = df.groupby('Output')
+    for output, group in grouped:
+        rows = group.sort_values('Arrival')
+        if len(rows) < 3:
+            continue
+        for combo in combinations(rows.index, 3):
+            trio_df = rows.loc[list(combo)].sort_values('Arrival')
+            if not trio_df.iloc[-1]['Day'].startswith(target_day):
+                continue
+            if not trio_df['Origin'].between(800, 1300).any():
+                continue
+            m_vals = trio_df['M Name'].abs().tolist()
+            actual_m = trio_df['M Name'].tolist()
+            if m_vals[0] > m_vals[1] > m_vals[2]:
+                kind = "Descending Trio"
+            elif m_vals[0] < m_vals[1] < m_vals[2]:
+                kind = "Ascending Trio"
+            else:
+                continue
+            trios.append({
+                'Arrival': trio_df['Arrival'].tolist(),
+                'M Name': actual_m,
+                'Output': output,
+                'Type': kind,
+                'Origins': trio_df['Origin'].tolist(),
+                'Rows': trio_df.index.tolist()
+            })
+    return sorted(trios, key=lambda x: x['Output'], reverse=True)
 
-def query_3_2_pairs(df, day_filter, exclude_ids):
+def query_3_matches(df, day_filter, first_m, second_m):
     results = []
-    df_day = df[df['Day'] == day_filter]
-    for idx, row in df_day.iterrows():
-        for c_idx, candidate in df_day.iterrows():
-            if idx == c_idx or (candidate['Arrival'] >= row['Arrival']):
-                continue
-            if (row['Output'] != candidate['Output']) or ((idx, c_idx) in exclude_ids) or ((c_idx, idx) in exclude_ids):
-                continue
-            if {row['M Name'], candidate['M Name']} == {0.0, 1.0}:
-                continue
-            if row['M Name'] == 1.0 or candidate['M Name'] == 1.0:
-                continue
-            if (800 <= row['Origin'] <= 1300) or (800 <= candidate['Origin'] <= 1300):
+    filtered = df[df['Day'] == day_filter]
+    first_rows = filtered[filtered['M Name'] == first_m]
+    for idx, row in first_rows.iterrows():
+        others = filtered[
+            (df['M Name'] == second_m) &
+            (df['Arrival'] < row['Arrival']) &
+            (df['Output'] == row['Output'])
+        ]
+        for jdx, match in others.iterrows():
+            if (800 <= row['Origin'] <= 1300) or (800 <= match['Origin'] <= 1300):
                 results.append({
-                    'Summary': f"At {row['Arrival']} {candidate['M Name']:.3f} to {row['M Name']:.3f} @ {row['Output']:,.3f}",
                     'Row New': idx,
-                    'Row Old': c_idx,
+                    'Row Old': jdx,
                     'Newest Arrival': row['Arrival'],
-                    'Older Arrival': candidate['Arrival'],
+                    'Older Arrival': match['Arrival'],
                     'M Newer': row['M Name'],
-                    'M Older': candidate['M Name'],
+                    'M Older': match['M Name'],
                     'Output': row['Output'],
                     'Origin New': row['Origin'],
-                    'Origin Old': candidate['Origin'],
+                    'Origin Old': match['Origin'],
                     'Day': row['Day']
                 })
     return results
 
-def trio_matches(df, day_filter):
-    results = []
-    df_day = df[df['Day'] == day_filter]
-    for output, group in df_day.groupby('Output'):
-        group = group.sort_values('Arrival')
-        if len(group) < 3:
-            continue
-        for i in range(len(group) - 2):
-            trio = group.iloc[i:i+3]
-            origins = trio['Origin'].tolist()
-            if not any((800 <= o <= 1300) for o in origins):
-                continue
-            m_vals = trio['M Name'].abs().values
-            m_actual = trio['M Name'].values
-            if m_vals[0] > m_vals[1] > m_vals[2]:
-                direction = "Descending Trio"
-            elif m_vals[0] < m_vals[1] < m_vals[2]:
-                direction = "Ascending Trio"
-            else:
-                continue
-            results.append({
-                'Summary': f"At {trio.iloc[2]['Arrival']} {m_actual[0]:.3f} to {m_actual[1]:.3f} to {m_actual[2]:.3f} @ {output:,.3f} ({direction})",
-                'Type': direction,
-                'Rows': trio.index.tolist(),
-                'Arrivals': trio['Arrival'].tolist(),
-                'M Names': trio['M Name'].tolist(),
-                'Origins': origins,
-                'Output': output
-            })
-    return results
+# --- Run Queries ---
+query_1a = match_proximity(df, "Today [0]")
+query_1b = match_proximity(df, "Yesterday [1]")
+query_3_1a = query_3_matches(df, "Today [0]", 1, 0)
+query_3_1b = query_3_matches(df, "Yesterday [1]", 1, 0)
+query_3_2a = query_3_matches(df, "Today [0]", 0, 1)
+query_3_2b = query_3_matches(df, "Yesterday [1]", 0, 1)
+trios_today = find_trios(df, "Today [0]")
+trios_yesterday = find_trios(df, "Yesterday [1]")
 
-# ---------- Query Execution ----------
-query_1_1a = proximity_pairs(df, "Today [0]")
-query_1_1b = proximity_pairs(df, "Yesterday [1]")
-
-query_3_1a = query_3_1_pairs(df, "Today [0]")
-query_3_1b = query_3_1_pairs(df, "Yesterday [1]")
-
-# Build set of existing pair IDs for 3.2 exclusion
-excl_ids = set()
-for q in (query_1_1a + query_1_1b + query_3_1a + query_3_1b):
-    excl_ids.add((q['Row New'], q['Row Old']))
-    excl_ids.add((q['Row Old'], q['Row New']))
-
-query_3_2a = query_3_2_pairs(df, "Today [0]", excl_ids)
-query_3_2b = query_3_2_pairs(df, "Yesterday [1]", excl_ids)
-
-query_2_1a = trio_matches(df, "Today [0]")
-query_2_1b = trio_matches(df, "Yesterday [1]")
-
-# ---------- Display ----------
+# --- Display Functions ---
 def display_pairs(title, results):
-    count = len(results)
-    st.subheader(f"{title} — {count} {'pair' if count == 1 else 'pairs'}")
-    for i, match in enumerate(results):
-        with st.expander(match['Summary']):
-            df_disp = pd.DataFrame([
-                {
-                    'Row': match['Row Old'],
-                    'Arrival': match['Older Arrival'],
-                    'M Name': match['M Older'],
-                    'Origin': match['Origin Old'],
-                    'Day': match['Day']
-                },
-                {
-                    'Row': match['Row New'],
-                    'Arrival': match['Newest Arrival'],
-                    'M Name': match['M Newer'],
-                    'Origin': match['Origin New'],
-                    'Day': match['Day']
-                }
-            ]).reset_index(drop=True)
-            st.dataframe(df_disp)
+    label = "pair" if len(results) == 1 else "pairs"
+    st.subheader(f"{title} — {len(results)} {label}")
+    for i, res in enumerate(results[::-1]):
+        summary = f"At {res['Newest Arrival']} {res['M Older']:.3f} to {res['M Newer']:.3f} @ {res['Output']:,.3f}"
+        with st.expander(summary):
+            df_pair = pd.DataFrame([
+                [res['Row Old'], res['Older Arrival'], res['M Older'], res['Origin Old'], res['Day']],
+                [res['Row New'], res['Newest Arrival'], res['M Newer'], res['Origin New'], res['Day']]
+            ], columns=["Row", "Arrival", "M Name", "Origin", "Day"])
+            df_pair.index = ["", ""]
+            st.write(df_pair)
 
 def display_trios(title, trios):
-    count = len(trios)
-    st.subheader(f"{title} — {count} {'trio' if count == 1 else 'trios'}")
-    for trio in trios:
-        with st.expander(trio['Summary']):
+    label = "trio" if len(trios) == 1 else "trios"
+    st.subheader(f"{title} — {len(trios)} {label}")
+    for i, trio in enumerate(trios):
+        arr_str = trio['Arrival'][-1].strftime('%Y-%m-%d %H:%M:%S')
+        mvals = trio['M Name']
+        summary = f"At {arr_str} {mvals[0]:.3f} to {mvals[1]:.3f} to {mvals[2]:.3f} @ {trio['Output']:,.3f} ({trio['Type']})"
+        with st.expander(summary):
             df_trio = pd.DataFrame({
-                'Row': trio['Rows'],
-                'Arrival': trio['Arrivals'],
-                'M Name': trio['M Names'],
-                'Origin': trio['Origins'],
-                'Output': [trio['Output']] * 3,
-                'Type': [trio['Type']] * 3
+                "Row": trio["Rows"],
+                "Arrival": trio["Arrival"],
+                "M Name": trio["M Name"],
+                "Origin": trio["Origins"],
+                "Output": [trio["Output"]] * 3,
+                "Type": [trio["Type"]] * 3
             })
-            df_trio.index.name = ''
-            st.dataframe(df_trio)
+            df_trio.index.name = ""
+            st.write(df_trio)
 
-# ---------- Output Display ----------
-display_pairs("Query 1.1a - Today 1→0 Pairs", query_1_1a)
-display_pairs("Query 1.1b - Yesterday 1→0 Pairs", query_1_1b)
-
-display_trios("Query 2.1a - Trios (Today)", query_2_1a)
-display_trios("Query 2.1b - Trios (Yesterday)", query_2_1b)
-
-display_pairs("Query 3.1a - Today #→1 Pairs", query_3_1a)
-display_pairs("Query 3.1b - Yesterday #→1 Pairs", query_3_1b)
-
-display_pairs("Query 3.2a - Today #→# Non-query 1.1 or 3.1 Pairs", query_3_2a)
-display_pairs("Query 3.2b - Yesterday #→# Non-query 1.1 or 3.1 Pairs", query_3_2b)
+# --- Display Results ---
+display_pairs("Query 1.1a - Today 1→0 Pairs", query_1a)
+display_pairs("Query 1.1b - Yesterday 1→0 Pairs", query_1b)
+display_trios("Query 2.1a - Trios (Today)", trios_today)
+display_trios("Query 2.1b - Trios (Yesterday)", trios_yesterday)
+display_pairs("Query 3.1a - Today M1 before M0", query_3_1a)
+display_pairs("Query 3.1b - Yesterday M1 before M0", query_3_1b)
+display_pairs("Query 3.2a - Today M0 before M1", query_3_2a)
+display_pairs("Query 3.2b - Yesterday M0 before M1", query_3_2b)
