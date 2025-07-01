@@ -160,31 +160,6 @@ def display_pairs(title, results):
     st.subheader(f"{title} — {len(results)} {label}")
     for i, res in enumerate(results):
         summary = f"At {res['Newest Arrival']} {res['M Older']:.3f} to {res['M Newer']:.3f} @ {res['Output']:,.3f}"
-#    try:
-#        input_val = df.loc[res['Row New']]['Input']
-#        diff = res['Output'] - input_val
-#        abs_diff = abs(diff)
-#        if abs_diff < 4:
-#            color = '#d3d3d3'  # Light gray
-#        elif diff >= 4:
-#            color = '#ffc1c1'  # Light red
-#        elif diff <= -4:
-#            color = '#cde2ff'  # Light blue
-#        else:
-#            color = None
-#    except:
-#        color = None
-# Style + Summary line BEFORE the expander itself
-#    if color:
-#        st.markdown(f"""
-#        <div style='background-color:{color}; padding:8px; border-radius:6px; font-weight:bold'>
-#            At {res['Newest Arrival']} {res['M Older']:.3f} to {res['M Newer']:.3f} @ {res['Output']:,.3f}
-#        </div>
-#        """, unsafe_allow_html=True)
-#    else:
-#        st.markdown(f"**{summary}**")
-
-    # Now open the expander AFTER that styled line
     with st.expander(summary):
         # color logic from before:
         try:
@@ -211,12 +186,12 @@ def display_pairs(title, results):
             )
 
     # display the paired DataFrame
-        df_pair = pd.DataFrame([
-            [res['Row Old'], res['Older Arrival'], res['M Older'], res['Origin Old'], res['Day']],
-            [res['Row New'], res['Newest Arrival'], res['M Newer'], res['Origin New'], res['Day']]
-        ], columns=["Row", "Arrival", "M Name", "Origin", "Day"])
-        df_pair.index = ["", ""]
-        st.write(df_pair)
+            df_pair = pd.DataFrame([
+                [res['Row Old'], res['Older Arrival'], res['M Older'], res['Origin Old'], res['Day']],
+                [res['Row New'], res['Newest Arrival'], res['M Newer'], res['Origin New'], res['Day']]
+            ], columns=["Row", "Arrival", "M Name", "Origin", "Day"])
+            df_pair.index = ["", ""]
+            st.write(df_pair)
 #        with st.expander("", expanded=False):
 #            df_pair = pd.DataFrame([
 #                [res['Row Old'], res['Older Arrival'], res['M Older'], res['Origin Old'], res['Day']],
