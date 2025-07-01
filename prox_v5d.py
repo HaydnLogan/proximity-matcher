@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("Proximity & Trio Match Analyzer (v4 with 3.2)")
+st.title("Proximity & Trio Match Analyzer v5d (v4 with 3.2)")
 
 # --- File Upload ---
 uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
