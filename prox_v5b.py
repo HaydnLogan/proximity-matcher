@@ -20,7 +20,7 @@ for col in ['Arrival', 'Departure']:
 df['M Name'] = pd.to_numeric(df['M Name'], errors='coerce')
 df['Output'] = pd.to_numeric(df['Output'], errors='coerce')
 df['Origin'] = pd.to_numeric(df['Origin'], errors='coerce')
-df['Day'] = df['Day'].astype(str)
+df['Day'] = df['Day'].astype(str).str.strip()
 
 # Drop rows with missing Arrival or Output
 initial_len = len(df)
@@ -33,10 +33,10 @@ if df.empty:
     st.error("No valid data remains after cleaning. Please upload a valid file.")
     st.stop()
 
-# --- Helper Functions ---
+# --- Query Functions ---
 def match_proximity(df, target_day):
     results = []
-    today_rows = df[(df['M Name'] == 0) & (df['Day'] == target_day)]
+    today_rows = df[(df['M Name'] == 0) & (df['Day'].str.strip() == target_day.strip())]
     for idx, row in today_rows.iterrows():
         matches = df[
             (df['Output'] == row['Output']) &
@@ -68,7 +68,7 @@ def find_trios(df, target_day):
             continue
         for combo in combinations(rows.index, 3):
             trio_df = rows.loc[list(combo)].sort_values('Arrival')
-            if not all(trio_df['Day'] == target_day):
+            if not all(trio_df['Day'].str.strip() == target_day.strip()):
                 continue
             if not trio_df['Origin'].between(800, 1300).any():
                 continue
@@ -90,28 +90,31 @@ def find_trios(df, target_day):
             })
     return sorted(trios, key=lambda x: x['Output'], reverse=True)
 
-def query_3_matches(df, day_filter, first_m, second_m):
+def find_3x_proximity(df, day_filter, target_m, direction='before'):
     results = []
-    filtered = df[df['Day'] == day_filter]
-    first_rows = filtered[filtered['M Name'] == first_m]
-    for idx, row in first_rows.iterrows():
-        others = filtered[
-            (filtered['M Name'] == second_m) &
-            (filtered['Arrival'] < row['Arrival']) &
-            (filtered['Output'] == row['Output'])
+    rows = df[(df['M Name'] == 0) & (df['Day'] == day_filter)]
+    for idx, row in rows.iterrows():
+        others = df[
+            (df['M Name'] == target_m) &
+            (df['Output'] == row['Output']) &
+            (df['Day'] == row['Day'])
         ]
-        for jdx, match in others.iterrows():
-            if (800 <= row['Origin'] <= 1300) or (800 <= match['Origin'] <= 1300):
+        if direction == 'before':
+            others = others[others['Arrival'] < row['Arrival']]
+        else:
+            others = others[others['Arrival'] > row['Arrival']]
+        for _, other in others.iterrows():
+            if (800 <= row['Origin'] <= 1300) or (800 <= other['Origin'] <= 1300):
                 results.append({
-                    'Row New': idx,
-                    'Row Old': jdx,
-                    'Newest Arrival': row['Arrival'],
-                    'Older Arrival': match['Arrival'],
-                    'M Newer': row['M Name'],
-                    'M Older': match['M Name'],
+                    'Row New': idx if direction == 'after' else other.name,
+                    'Row Old': other.name if direction == 'after' else idx,
+                    'Newest Arrival': max(row['Arrival'], other['Arrival']),
+                    'Older Arrival': min(row['Arrival'], other['Arrival']),
+                    'M Newer': row['M Name'] if direction == 'after' else other['M Name'],
+                    'M Older': other['M Name'] if direction == 'after' else row['M Name'],
                     'Output': row['Output'],
-                    'Origin New': row['Origin'],
-                    'Origin Old': match['Origin'],
+                    'Origin New': row['Origin'] if direction == 'after' else other['Origin'],
+                    'Origin Old': other['Origin'] if direction == 'after' else row['Origin'],
                     'Day': row['Day']
                 })
     return results
@@ -121,10 +124,10 @@ query_1a = match_proximity(df, "Today [0]")
 query_1b = match_proximity(df, "Yesterday [1]")
 trios_today = find_trios(df, "Today [0]")
 trios_yesterday = find_trios(df, "Yesterday [1]")
-query_3_1a = query_3_matches(df, "Today [0]", 1, 0)
-query_3_1b = query_3_matches(df, "Yesterday [1]", 1, 0)
-query_3_2a = query_3_matches(df, "Today [0]", -1, 0)
-query_3_2b = query_3_matches(df, "Yesterday [1]", -1, 0)
+query_3_1a = find_3x_proximity(df, "Today [0]", target_m=1, direction='before')
+query_3_1b = find_3x_proximity(df, "Yesterday [1]", target_m=1, direction='before')
+query_3_2a = find_3x_proximity(df, "Today [0]", target_m=1, direction='after')
+query_3_2b = find_3x_proximity(df, "Yesterday [1]", target_m=1, direction='after')
 
 # --- Display Functions ---
 def display_pairs(title, results):
@@ -164,7 +167,7 @@ display_pairs("Query 1.1a - Today 1→0 Pairs", query_1a)
 display_pairs("Query 1.1b - Yesterday 1→0 Pairs", query_1b)
 display_trios("Query 2.1a - Trios (Today)", trios_today)
 display_trios("Query 2.1b - Trios (Yesterday)", trios_yesterday)
-display_pairs("Query 3.1a - M1 before M0 (Today)", query_3_1a)
-display_pairs("Query 3.1b - M1 before M0 (Yesterday)", query_3_1b)
-display_pairs("Query 3.2a - M-1 before M0 (Today)", query_3_2a)
-display_pairs("Query 3.2b - M-1 before M0 (Yesterday)", query_3_2b)
+display_pairs("Query 3.1a - Today M1 Before M0", query_3_1a)
+display_pairs("Query 3.1b - Yesterday M1 Before M0", query_3_1b)
+display_pairs("Query 3.2a - Today M1 After M0", query_3_2a)
+display_pairs("Query 3.2b - Yesterday M1 After M0", query_3_2b)
