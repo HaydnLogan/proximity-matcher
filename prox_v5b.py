@@ -12,7 +12,7 @@ if not uploaded_file:
 
 df = pd.read_csv(uploaded_file)
 
-# Convert columns
+# --- Data Cleaning ---
 for col in ['Arrival', 'Departure']:
     if col in df.columns:
         df[col] = pd.to_datetime(df[col], errors='coerce')
@@ -22,18 +22,16 @@ df['Output'] = pd.to_numeric(df['Output'], errors='coerce')
 df['Origin'] = pd.to_numeric(df['Origin'], errors='coerce')
 df['Day'] = df['Day'].astype(str)
 
-# Drop rows with missing Arrival or Output
 initial_len = len(df)
 df = df.dropna(subset=['Arrival', 'Output'])
-filtered_len = len(df)
-removed_rows = initial_len - filtered_len
+removed_rows = initial_len - len(df)
 if removed_rows > 0:
     st.warning(f"{removed_rows:,} rows removed due to invalid Arrival or Output values.")
 if df.empty:
     st.error("No valid data remains after cleaning. Please upload a valid file.")
     st.stop()
 
-# --- Query Functions ---
+# --- Helper Functions ---
 def match_proximity(df, target_day):
     results = []
     today_rows = df[(df['M Name'] == 0) & (df['Day'] == target_day)]
@@ -90,50 +88,30 @@ def find_trios(df, target_day):
             })
     return sorted(trios, key=lambda x: x['Output'], reverse=True)
 
-def query_m1_before_m0(df, day_filter):
+def find_cross_pairs(df, mname_filter, mname_target, target_day):
     results = []
-    m0 = df[(df['M Name'] == 0) & (df['Day'] == day_filter)]
-    m1 = df[(df['M Name'] == 1) & (df['Day'] == day_filter)]
-
-    for i0, row0 in m0.iterrows():
-        for i1, row1 in m1.iterrows():
-            if row1['Output'] == row0['Output'] and row1['Arrival'] < row0['Arrival']:
-                if (800 <= row0['Origin'] <= 1300) or (800 <= row1['Origin'] <= 1300):
-                    results.append({
-                        'Row New': i0,
-                        'Row Old': i1,
-                        'Newest Arrival': row0['Arrival'],
-                        'Older Arrival': row1['Arrival'],
-                        'M Newer': row0['M Name'],
-                        'M Older': row1['M Name'],
-                        'Output': row0['Output'],
-                        'Origin New': row0['Origin'],
-                        'Origin Old': row1['Origin'],
-                        'Day': row0['Day']
-                    })
-    return results
-
-def query_m1_after_m0(df, day_filter):
-    results = []
-    m0 = df[(df['M Name'] == 0) & (df['Day'] == day_filter)]
-    m1 = df[(df['M Name'] == 1) & (df['Day'] == day_filter)]
-
-    for i0, row0 in m0.iterrows():
-        for i1, row1 in m1.iterrows():
-            if row1['Output'] == row0['Output'] and row1['Arrival'] > row0['Arrival']:
-                if (800 <= row0['Origin'] <= 1300) or (800 <= row1['Origin'] <= 1300):
-                    results.append({
-                        'Row New': i1,
-                        'Row Old': i0,
-                        'Newest Arrival': row1['Arrival'],
-                        'Older Arrival': row0['Arrival'],
-                        'M Newer': row1['M Name'],
-                        'M Older': row0['M Name'],
-                        'Output': row0['Output'],
-                        'Origin New': row1['Origin'],
-                        'Origin Old': row0['Origin'],
-                        'Day': row0['Day']
-                    })
+    df_day = df[df['Day'] == target_day]
+    for idx1, row1 in df_day.iterrows():
+        for idx2, row2 in df[df['Day'].isin(["Today [0]", "Yesterday [1]"])].iterrows():
+            if row1['Arrival'] >= row2['Arrival']:
+                continue
+            if not ((row1['M Name'] in mname_filter and row2['M Name'] in mname_target) or
+                    (row2['M Name'] in mname_filter and row1['M Name'] in mname_target)):
+                continue
+            if not (800 <= row1['Origin'] <= 1300 or 800 <= row2['Origin'] <= 1300):
+                continue
+            results.append({
+                'Row New': idx2,
+                'Row Old': idx1,
+                'Newest Arrival': row2['Arrival'],
+                'Older Arrival': row1['Arrival'],
+                'M Newer': row2['M Name'],
+                'M Older': row1['M Name'],
+                'Output': row2['Output'],
+                'Origin New': row2['Origin'],
+                'Origin Old': row1['Origin'],
+                'Day': row2['Day']
+            })
     return results
 
 # --- Run Queries ---
@@ -141,10 +119,15 @@ query_1a = match_proximity(df, "Today [0]")
 query_1b = match_proximity(df, "Yesterday [1]")
 trios_today = find_trios(df, "Today [0]")
 trios_yesterday = find_trios(df, "Yesterday [1]")
-query_3_1a = query_m1_before_m0(df, "Today [0]")
-query_3_1b = query_m1_before_m0(df, "Yesterday [1]")
-query_3_2a = query_m1_after_m0(df, "Today [0]")
-query_3_2b = query_m1_after_m0(df, "Yesterday [1]")
+
+query_3_1a = find_cross_pairs(df, mname_filter=range(-100, 100), mname_target=[1.0, -1.0], target_day="Today [0]")
+query_3_1b = find_cross_pairs(df, mname_filter=range(-100, 100), mname_target=[1.0, -1.0], target_day="Yesterday [1]")
+query_3_2a = find_cross_pairs(df, mname_filter=[x for x in range(-100, 100) if x not in (1, -1)],
+                              mname_target=[x for x in range(-100, 100) if x not in (1, -1)],
+                              target_day="Today [0]")
+query_3_2b = find_cross_pairs(df, mname_filter=[x for x in range(-100, 100) if x not in (1, -1)],
+                              mname_target=[x for x in range(-100, 100) if x not in (1, -1)],
+                              target_day="Yesterday [1]")
 
 # --- Display Functions ---
 def display_pairs(title, results):
@@ -163,7 +146,7 @@ def display_pairs(title, results):
 def display_trios(title, trios):
     label = "trio" if len(trios) == 1 else "trios"
     st.subheader(f"{title} — {len(trios)} {label}")
-    for i, trio in enumerate(trios):
+    for trio in trios:
         arr_str = trio['Arrival'][-1].strftime('%Y-%m-%d %H:%M:%S')
         mvals = trio['M Name']
         summary = f"At {arr_str} {mvals[0]:.3f} to {mvals[1]:.3f} to {mvals[2]:.3f} @ {trio['Output']:,.3f} ({trio['Type']})"
@@ -179,12 +162,12 @@ def display_trios(title, trios):
             df_trio.index.name = ""
             st.write(df_trio)
 
-# --- Display Results ---
+# --- Display All Queries ---
 display_pairs("Query 1.1a - Today 1→0 Pairs", query_1a)
 display_pairs("Query 1.1b - Yesterday 1→0 Pairs", query_1b)
 display_trios("Query 2.1a - Trios (Today)", trios_today)
 display_trios("Query 2.1b - Trios (Yesterday)", trios_yesterday)
-display_pairs("Query 3.1a - Today M1 Before M0", query_3_1a)
-display_pairs("Query 3.1b - Yesterday M1 Before M0", query_3_1b)
-display_pairs("Query 3.2a - Today M1 After M0", query_3_2a)
-display_pairs("Query 3.2b - Yesterday M1 After M0", query_3_2b)
+display_pairs("Query 3.1a - Today #→±1", query_3_1a)
+display_pairs("Query 3.1b - Yesterday #→±1", query_3_1b)
+display_pairs("Query 3.2a - Today #→# (≠±1)", query_3_2a)
+display_pairs("Query 3.2b - Yesterday #→# (≠±1)", query_3_2b)
