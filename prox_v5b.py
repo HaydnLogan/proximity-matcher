@@ -20,7 +20,7 @@ for col in ['Arrival', 'Departure']:
 df['M Name'] = pd.to_numeric(df['M Name'], errors='coerce')
 df['Output'] = pd.to_numeric(df['Output'], errors='coerce')
 df['Origin'] = pd.to_numeric(df['Origin'], errors='coerce')
-df['Day'] = df['Day'].astype(str).str.strip()
+df['Day'] = df['Day'].astype(str)
 
 # Drop rows with missing Arrival or Output
 initial_len = len(df)
@@ -36,7 +36,7 @@ if df.empty:
 # --- Query Functions ---
 def match_proximity(df, target_day):
     results = []
-    today_rows = df[(df['M Name'] == 0) & (df['Day'].str.strip() == target_day.strip())]
+    today_rows = df[(df['M Name'] == 0) & (df['Day'] == target_day)]
     for idx, row in today_rows.iterrows():
         matches = df[
             (df['Output'] == row['Output']) &
@@ -68,7 +68,7 @@ def find_trios(df, target_day):
             continue
         for combo in combinations(rows.index, 3):
             trio_df = rows.loc[list(combo)].sort_values('Arrival')
-            if not all(trio_df['Day'].str.strip() == target_day.strip()):
+            if not trio_df.iloc[-1]['Day'].startswith(target_day):
                 continue
             if not trio_df['Origin'].between(800, 1300).any():
                 continue
@@ -90,33 +90,50 @@ def find_trios(df, target_day):
             })
     return sorted(trios, key=lambda x: x['Output'], reverse=True)
 
-def find_3x_proximity(df, day_filter, target_m, direction='before'):
+def query_m1_before_m0(df, day_filter):
     results = []
-    rows = df[(df['M Name'] == 0) & (df['Day'] == day_filter)]
-    for idx, row in rows.iterrows():
-        others = df[
-            (df['M Name'] == target_m) &
-            (df['Output'] == row['Output']) &
-            (df['Day'] == row['Day'])
-        ]
-        if direction == 'before':
-            others = others[others['Arrival'] < row['Arrival']]
-        else:
-            others = others[others['Arrival'] > row['Arrival']]
-        for _, other in others.iterrows():
-            if (800 <= row['Origin'] <= 1300) or (800 <= other['Origin'] <= 1300):
-                results.append({
-                    'Row New': idx if direction == 'after' else other.name,
-                    'Row Old': other.name if direction == 'after' else idx,
-                    'Newest Arrival': max(row['Arrival'], other['Arrival']),
-                    'Older Arrival': min(row['Arrival'], other['Arrival']),
-                    'M Newer': row['M Name'] if direction == 'after' else other['M Name'],
-                    'M Older': other['M Name'] if direction == 'after' else row['M Name'],
-                    'Output': row['Output'],
-                    'Origin New': row['Origin'] if direction == 'after' else other['Origin'],
-                    'Origin Old': other['Origin'] if direction == 'after' else row['Origin'],
-                    'Day': row['Day']
-                })
+    m0 = df[(df['M Name'] == 0) & (df['Day'] == day_filter)]
+    m1 = df[(df['M Name'] == 1) & (df['Day'] == day_filter)]
+
+    for i0, row0 in m0.iterrows():
+        for i1, row1 in m1.iterrows():
+            if row1['Output'] == row0['Output'] and row1['Arrival'] < row0['Arrival']:
+                if (800 <= row0['Origin'] <= 1300) or (800 <= row1['Origin'] <= 1300):
+                    results.append({
+                        'Row New': i0,
+                        'Row Old': i1,
+                        'Newest Arrival': row0['Arrival'],
+                        'Older Arrival': row1['Arrival'],
+                        'M Newer': row0['M Name'],
+                        'M Older': row1['M Name'],
+                        'Output': row0['Output'],
+                        'Origin New': row0['Origin'],
+                        'Origin Old': row1['Origin'],
+                        'Day': row0['Day']
+                    })
+    return results
+
+def query_m1_after_m0(df, day_filter):
+    results = []
+    m0 = df[(df['M Name'] == 0) & (df['Day'] == day_filter)]
+    m1 = df[(df['M Name'] == 1) & (df['Day'] == day_filter)]
+
+    for i0, row0 in m0.iterrows():
+        for i1, row1 in m1.iterrows():
+            if row1['Output'] == row0['Output'] and row1['Arrival'] > row0['Arrival']:
+                if (800 <= row0['Origin'] <= 1300) or (800 <= row1['Origin'] <= 1300):
+                    results.append({
+                        'Row New': i1,
+                        'Row Old': i0,
+                        'Newest Arrival': row1['Arrival'],
+                        'Older Arrival': row0['Arrival'],
+                        'M Newer': row1['M Name'],
+                        'M Older': row0['M Name'],
+                        'Output': row0['Output'],
+                        'Origin New': row1['Origin'],
+                        'Origin Old': row0['Origin'],
+                        'Day': row0['Day']
+                    })
     return results
 
 # --- Run Queries ---
@@ -124,10 +141,10 @@ query_1a = match_proximity(df, "Today [0]")
 query_1b = match_proximity(df, "Yesterday [1]")
 trios_today = find_trios(df, "Today [0]")
 trios_yesterday = find_trios(df, "Yesterday [1]")
-query_3_1a = find_3x_proximity(df, "Today [0]", target_m=1, direction='before')
-query_3_1b = find_3x_proximity(df, "Yesterday [1]", target_m=1, direction='before')
-query_3_2a = find_3x_proximity(df, "Today [0]", target_m=1, direction='after')
-query_3_2b = find_3x_proximity(df, "Yesterday [1]", target_m=1, direction='after')
+query_3_1a = query_m1_before_m0(df, "Today [0]")
+query_3_1b = query_m1_before_m0(df, "Yesterday [1]")
+query_3_2a = query_m1_after_m0(df, "Today [0]")
+query_3_2b = query_m1_after_m0(df, "Yesterday [1]")
 
 # --- Display Functions ---
 def display_pairs(title, results):
