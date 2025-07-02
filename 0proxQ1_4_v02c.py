@@ -237,7 +237,8 @@ def build_output_summary(pairs_list, trios_list, df):
         "Total Matches": 0,
         "Conditions": set(),
         "Feeds": set(),
-        "Out/In Δ": None
+        "Out/In Δ": None,
+        "To": None
     })
 
     # Process pairs
@@ -252,6 +253,7 @@ def build_output_summary(pairs_list, trios_list, df):
             try:
                 input_val = df.loc[r["Row New"]]["Input"]
                 output_data[out]["Out/In Δ"] = round(out - input_val, 3)
+                output_data[out]["To"] = df.loc[r["Row New"]]["M Name"]
             except:
                 pass
 
@@ -266,8 +268,10 @@ def build_output_summary(pairs_list, trios_list, df):
             try:
                 input_val = df.loc[trio["Rows"][-1]]["Input"]
                 output_data[out]["Out/In Δ"] = round(out - input_val, 3)
+                output_data[out]["To"] = trio["M Name"][-1]
             except:
                 pass
+
     rows = []
     for out, info in sorted(output_data.items(), reverse=True):
         feeds = info["Feeds"]
@@ -284,6 +288,7 @@ def build_output_summary(pairs_list, trios_list, df):
             "Out/In Δ": info["Out/In Δ"],
             "Output": out,
             "Total Matches": info["Total Matches"],
+            "To": info["To"],
             "Conditions Found": ", ".join(sorted(info["Conditions"])),
             "Feed Source": feed_source
         })
