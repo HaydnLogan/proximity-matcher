@@ -239,11 +239,9 @@ def display_pairs(title, results):
 
     filters = st.multiselect(
         "Filter Pairs by Feed Type",
-        [...],
-        default=[...],
-        key=f"pair_filter_{title.replace(' ', '_')}"
         ["Show All", "sm-sm", "Bg-Bg", "Same Feed", "Cross Feed"],
         default=["Show All"]
+        key=f"pair_filter_{title.replace(' ', '_')}"
     )
 
     for i, res in enumerate(results):
@@ -305,12 +303,11 @@ def display_trios(title, trios):
     # ✅ Filter controls go here
     filters = st.multiselect(
         "Filter Trios by Feed Type",
-        [...],
-        default=[...],
-        key=f"trio_filter_{title.replace(' ', '_')}"
         ["Show All", "Same sm", "Same Bg", "Cross Feed"],
         default=["Show All"]
+        key=f"trio_filter_{title.replace(' ', '_')}"
     )
+    
     # ✅ Trio category classifier function
     def classify_trio(feeds):
         feeds = [f.lower() for f in feeds]
