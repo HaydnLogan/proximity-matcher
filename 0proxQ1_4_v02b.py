@@ -240,7 +240,7 @@ def display_pairs(title, results):
     filters = st.multiselect(
         "Filter Pairs by Feed Type",
         ["Show All", "sm-sm", "Bg-Bg", "Same Feed", "Cross Feed"],
-        default=["Show All"]
+        default=["Show All"],
         key=f"pair_filter_{title.replace(' ', '_')}"
     )
 
@@ -304,7 +304,7 @@ def display_trios(title, trios):
     filters = st.multiselect(
         "Filter Trios by Feed Type",
         ["Show All", "Same sm", "Same Bg", "Cross Feed"],
-        default=["Show All"]
+        default=["Show All"],
         key=f"trio_filter_{title.replace(' ', '_')}"
     )
     
