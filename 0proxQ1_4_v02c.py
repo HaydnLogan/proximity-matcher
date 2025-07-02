@@ -4,7 +4,7 @@ from itertools import combinations
 from collections import defaultdict
 
 st.set_page_config(layout="wide")
-st.title("Pair & Trio Match o.o prox Analyzer v6e q1→4 cross feed Table")
+st.title("Pair & Trio Match o.o prox Analyzer v6f q1→4 cross feed Table expanded")
 
 # --- File Upload ---
 uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
@@ -454,7 +454,14 @@ output_multi, output_single = build_output_summary(
 )
 
 st.markdown("### 🧭 Output Summary — Match Clusters")
-st.dataframe(output_multi)
+for _, row in output_multi.iterrows():
+    icon = "🧨" if row["Total Matches"] >= 5 else "📊"
+    with st.expander(f"{icon} Output {row['Output']:,.3f} — {row['Total Matches']} matches"):
+        st.markdown(f"""
+**Out/In Δ**: {row['Out/In Δ']:+.3f}  
+**Conditions Found**: {row['Conditions Found']}  
+**Feed Source**: {row['Feed Source']}
+""")
 
 st.markdown("### 🔍 Output Summary — Solo Matches")
 st.dataframe(output_single)
