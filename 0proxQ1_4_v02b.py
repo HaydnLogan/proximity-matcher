@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from itertools import combinations
+from collections import defaultdict
 
 st.set_page_config(layout="wide")
 st.title("Pair & Trio Match o.o prox Analyzer v6d q1→4 cross feed ID")
@@ -231,6 +232,67 @@ def count_feed_combos(results):
             cross += 1
     return sm_sm, bg_bg, cross
 
+def build_output_summary(pairs_list, trios_list, df):
+    output_data = defaultdict(lambda: {
+        "Total Matches": 0,
+        "Conditions": set(),
+        "Feeds": set(),
+        "Out/In Δ": None
+    })
+
+    # Process pairs
+    for title, results in pairs_list:
+        for r in results:
+            out = r["Output"]
+            output_data[out]["Total Matches"] += 1
+            output_data[out]["Conditions"].add(title)
+            f1 = str(df.loc[r['Row Old']]['Feed']).lower()
+            f2 = str(df.loc[r['Row New']]['Feed']).lower()
+            output_data[out]["Feeds"].update([f1, f2])
+            try:
+                input_val = df.loc[r["Row New"]]["Input"]
+                output_data[out]["Out/In Δ"] = round(out - input_val, 3)
+            except:
+                pass
+
+    # Process trios
+    for title, trios in trios_list:
+        for trio in trios:
+            out = trio["Output"]
+            output_data[out]["Total Matches"] += 1
+            output_data[out]["Conditions"].add(title)
+            feeds = [str(df.loc[i]["Feed"]).lower() for i in trio["Rows"]]
+            output_data[out]["Feeds"].update(feeds)
+            try:
+                input_val = df.loc[trio["Rows"][-1]]["Input"]
+                output_data[out]["Out/In Δ"] = round(out - input_val, 3)
+            except:
+                pass
+
+    rows = []
+    for out, info in sorted(output_data.items(), reverse=True):
+        feeds = info["Feeds"]
+        if all("sm" in f for f in feeds):
+            feed_source = "Small"
+        elif all("bg" in f for f in feeds):
+            feed_source = "Big"
+        elif len(feeds) > 1:
+            feed_source = "Cross"
+        else:
+            feed_source = "Unknown"
+
+        rows.append({
+            rows_multi = [r for r in rows if r["Total Matches"] >= 2]
+            rows_single = [r for r in rows if r["Total Matches"] == 1]
+            "Out/In Δ": info["Out/In Δ"],
+            "Output": out,
+            "Total Matches": info["Total Matches"],
+            "Conditions Found": ", ".join(sorted(info["Conditions"])),
+            "Feed Source": feed_source
+        })
+
+    return pd.DataFrame(rows_multi), pd.DataFrame(rows_single)
+
 def display_pairs(title, results):
     sm_sm, bg_bg, cross = count_feed_combos(results)
     label = "pair" if len(results) == 1 else "pairs"
@@ -371,6 +433,30 @@ query_4_1b = query_4_opposites(df, "Yesterday [1]")
 
 
 # --- Display Results ---
+output_multi, output_single = build_output_summary(
+    pairs_list=[
+        ("1→0 Today", query_1a),
+        ("1→0 Yesterday", query_1b),
+        ("#→±1 Today", query_3_1a),
+        ("#→±1 Yesterday", query_3_1b),
+        ("#→# (≠±1) Today", query_3_2a),
+        ("#→# (≠±1) Yesterday", query_3_2b),
+        ("Opposites Today", query_4_1a),
+        ("Opposites Yesterday", query_4_1b)
+    ],
+    trios_list=[
+        ("Trios Today", trios_today),
+        ("Trios Yesterday", trios_yesterday)
+    ],
+    df=df
+)
+
+st.markdown("### 🧭 Output Summary — Match Clusters")
+st.dataframe(output_multi)
+
+st.markdown("### 🔍 Output Summary — Solo Matches")
+st.dataframe(output_single)
+
 display_pairs("1.1a 1→0 Today", query_1a)
 display_pairs("1.1b 1→0 Yesterday", query_1b)
 
