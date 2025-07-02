@@ -268,7 +268,6 @@ def build_output_summary(pairs_list, trios_list, df):
                 output_data[out]["Out/In Δ"] = round(out - input_val, 3)
             except:
                 pass
-
     rows = []
     for out, info in sorted(output_data.items(), reverse=True):
         feeds = info["Feeds"]
@@ -282,8 +281,6 @@ def build_output_summary(pairs_list, trios_list, df):
             feed_source = "Unknown"
 
         rows.append({
-            rows_multi = [r for r in rows if r["Total Matches"] >= 2]
-            rows_single = [r for r in rows if r["Total Matches"] == 1]
             "Out/In Δ": info["Out/In Δ"],
             "Output": out,
             "Total Matches": info["Total Matches"],
@@ -291,8 +288,13 @@ def build_output_summary(pairs_list, trios_list, df):
             "Feed Source": feed_source
         })
 
+    # ✅ Separate into Multi and Single Matches
+    rows_multi = [r for r in rows if r["Total Matches"] >= 2]
+    rows_single = [r for r in rows if r["Total Matches"] == 1]
+
     return pd.DataFrame(rows_multi), pd.DataFrame(rows_single)
 
+    
 def display_pairs(title, results):
     sm_sm, bg_bg, cross = count_feed_combos(results)
     label = "pair" if len(results) == 1 else "pairs"
