@@ -238,7 +238,7 @@ def display_pairs(title, results):
     st.subheader(f"{title} — {len(results)} {label}. {feed_summary}")
 
     filters = st.multiselect(
-        "Filter Pairs by Feed Type",
+        f"Filter Pairs by Feed Type — {title}",
         ["Show All", "sm-sm", "Bg-Bg", "Same Feed", "Cross Feed"],
         default=["Show All"]
     )
@@ -301,7 +301,7 @@ def display_trios(title, trios):
     
     # ✅ Filter controls go here
     filters = st.multiselect(
-        "Filter Trios by Feed Type",
+        f"Filter Trios by Feed Type — {title}",
         ["Show All", "Same sm", "Same Bg", "Cross Feed"],
         default=["Show All"]
     )
@@ -368,13 +368,17 @@ query_4_1b = query_4_opposites(df, "Yesterday [1]")
 
 
 # --- Display Results ---
-display_pairs("Query 1.1a - Today 1→0 Pairs", query_1a)
-display_pairs("Query 1.1b - Yesterday 1→0 Pairs", query_1b)
-display_trios("Query 2.1a - Trios (Today)", trios_today)
-display_trios("Query 2.1b - Trios (Yesterday)", trios_yesterday)
-display_pairs("Query 3.1a - Today #→±1", query_3_1a)
-display_pairs("Query 3.1b - Yesterday #→±1", query_3_1b)
-display_pairs("Query 3.2a - Today #→# (≠±1)", query_3_2a)
-display_pairs("Query 3.2b - Yesterday #→# (≠±1)", query_3_2b)
-display_pairs("Query 4.1a - Opposites (Today)", query_4_1a)
-display_pairs("Query 4.1b - Opposites (Yesterday)", query_4_1b)
+display_pairs("1.1a 1→0 Today", query_1a)
+display_pairs("1.1b 1→0 Yesterday", query_1b)
+
+display_trios("2.1a Trios Today", trios_today)
+display_trios("2.1b Trios Yesterday", trios_yesterday)
+
+display_pairs("3.1a #→±1 Today", query_3_1a)
+display_pairs("3.1b #→±1 Yesterday", query_3_1b)
+
+display_pairs("3.2a #→# (≠±1) Today", query_3_2a)
+display_pairs("3.2b #→# (≠±1) Yesterday", query_3_2b)
+
+display_pairs("4.1a Opposites Today", query_4_1a)
+display_pairs("4.1b Opposites Yesterday", query_4_1b)
