@@ -180,6 +180,19 @@ def query_4_opposites(df, day_filter):
                 })
     return sorted(results, key=lambda r: r['Output'], reverse=True)
 
+def count_trio_feed_combos(trios):
+    sm, bg, cross = 0, 0, 0
+    for trio in trios:
+        feeds = [str(df.loc[i]['Feed']).lower() for i in trio["Rows"]]
+        unique = set(feeds)
+        if len(unique) == 1 and "sm" in unique:
+            sm += 1
+        elif len(unique) == 1 and "bg" in unique:
+            bg += 1
+        elif len(unique) > 1:
+            cross += 1
+    return sm, bg, cross
+
 
 # --- Display Functions ---
 def get_feed_icon(feed):
@@ -191,15 +204,54 @@ def get_feed_icon(feed):
     else:
         return "❓"
 
+def classify_pair(f1, f2):
+    f1 = str(f1).lower()
+    f2 = str(f2).lower()
+    if "sm" in f1 and "sm" in f2:
+        return "sm-sm"
+    elif "bg" in f1 and "bg" in f2:
+        return "Bg-Bg"
+    elif f1 == f2:
+        return "Same Feed"
+    else:
+        return "Cross Feed"
+
+def count_feed_combos(results):
+    sm_sm, bg_bg, cross = 0, 0, 0
+    for r in results:
+        f1 = str(df.loc[r['Row Old']]['Feed']).lower()
+        f2 = str(df.loc[r['Row New']]['Feed']).lower()
+        if "sm" in f1 and "sm" in f2:
+            sm_sm += 1
+        elif "bg" in f1 and "bg" in f2:
+            bg_bg += 1
+        elif f1 == f2:
+            pass  # already counted in sm_sm/bg_bg
+        else:
+            cross += 1
+    return sm_sm, bg_bg, cross
+
 def display_pairs(title, results):
+    sm_sm, bg_bg, cross = count_feed_combos(results)
     label = "pair" if len(results) == 1 else "pairs"
-    st.subheader(f"{title} — {len(results)} {label}")
+    feed_summary = f"{sm_sm} sm-sm, {bg_bg} Bg-Bg, {cross} Cross"
+    st.subheader(f"{title} — {len(results)} {label}. {feed_summary}")
+
+    filters = st.multiselect(
+        "Filter Pairs by Feed Type",
+        ["Show All", "sm-sm", "Bg-Bg", "Same Feed", "Cross Feed"],
+        default=["Show All"]
+    )
 
     for i, res in enumerate(results):
         feed_old = str(df.loc[res['Row Old']]['Feed'])
         feed_new = str(df.loc[res['Row New']]['Feed'])
         icon_old = get_feed_icon(feed_old)
         icon_new = get_feed_icon(feed_new)
+
+        category = classify_pair(feed_old, feed_new)
+        if "Show All" not in filters and category not in filters:
+            continue
 
         feed_tag = ""
         if feed_old != feed_new:
@@ -246,12 +298,47 @@ def display_pairs(title, results):
 def display_trios(title, trios):
     label = "trio" if len(trios) == 1 else "trios"
     st.subheader(f"{title} — {len(trios)} {label}")
+    
+    # ✅ Filter controls go here
+    filters = st.multiselect(
+        "Filter Trios by Feed Type",
+        ["Show All", "Same sm", "Same Bg", "Cross Feed"],
+        default=["Show All"]
+    )
+    # ✅ Trio category classifier function
+    def classify_trio(feeds):
+        feeds = [f.lower() for f in feeds]
+        unique = set(feeds)
+        if len(unique) == 1 and "sm" in unique:
+            return "Same sm"
+        elif len(unique) == 1 and "bg" in unique:
+            return "Same Bg"
+        elif len(unique) > 1:
+            return "Cross Feed"
+        return "Other"
+    
+    # ✅ Loop over and filter trios before displaying
     for trio in trios:
+        feeds = [str(df.loc[i]['Feed']) for i in trio["Rows"]]
+        category = classify_trio(feeds)
+        if "Show All" not in filters and category not in filters:
+            continue
+
+        # Summary info
         arr_str = trio['Arrival'][-1].strftime('%Y-%m-%d %H:%M:%S')
         mvals = trio['M Name']
-        summary = f"At {arr_str} {mvals[0]:.3f} to {mvals[1]:.3f} to {mvals[2]:.3f} @ {trio['Output']:,.3f} ({trio['Type']})"
+        icons = [get_feed_icon(f) for f in feeds]
+        is_cross = len(set([f.lower() for f in feeds])) > 1
+        feed_tag = " 🔀 CROSS FEED MATCH" if is_cross else ""
+
+        summary = (
+            f"At {arr_str} {mvals[0]:.3f} to {mvals[1]:.3f} to {mvals[2]:.3f} "
+            f"@ {trio['Output']:,.3f} ({trio['Type']}){feed_tag} [{icons[0]}→{icons[1]}→{icons[2]}]"
+        )
+
         with st.expander(summary):
             df_trio = pd.DataFrame({
+                "Feed": feeds,
                 "Row": trio["Rows"],
                 "Arrival": trio["Arrival"],
                 "M Name": trio["M Name"],
@@ -261,6 +348,9 @@ def display_trios(title, trios):
             })
             df_trio.index.name = ""
             st.write(df_trio)
+
+
+
 
 # --- Run Queries ---
 query_1a = match_proximity(df, "Today [0]")
