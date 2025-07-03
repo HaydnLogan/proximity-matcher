@@ -3,32 +3,34 @@ import pandas as pd
 from datetime import datetime
 
 # 🔹 Title & File Upload
-st.title("Position A1 Detector – Anchor Zone Identification")
-uploaded_file = st.file_uploader("Drop your report CSV here", type="csv")
+st.title("🅰️ Position A1 Detector – Anchor Zone Scanner")
+uploaded_file = st.file_uploader("📤 Upload your report CSV", type="csv")
 
-# 🔹 Load & Validate Data
 if uploaded_file:
-    df = pd.read_csv(uploaded_file, parse_dates=["Arrival"])
+    # 🔹 Read and parse datetime
+    df = pd.read_csv(uploaded_file)
+    df["Arrival"] = pd.to_datetime(df["Arrival"], errors="coerce")
 
-    # Confirm required columns
-    required = {"Arrival", "Day", "Origin", "M #", "Feed", "Output"}
-    if not required.issubset(df.columns):
-        st.error("Missing required columns in CSV. Please check the file format.")
+    # 🔹 Validate required columns
+    required_cols = {"Arrival", "Day", "Origin", "M #", "Feed", "Output"}
+    if not required_cols.issubset(df.columns):
+        st.error("❌ CSV is missing required columns. Expected: " + ", ".join(required_cols))
         st.stop()
 
-    # 🔹 Dynamically Set Report Time
-    report_time = pd.to_datetime(df["Arrival"].max()).round("H")
-    st.write(f"Detected Report Time: {report_time.strftime('%Y-%m-%d %H:%M')}")
+    if df["Arrival"].isnull().any():
+        st.warning("⚠️ Some Arrival values couldn't be parsed as timestamps. They will be skipped.")
 
-    # 🔹 Feed → Icon
+    # 🔹 Dynamic Report Time
+    report_time = pd.to_datetime(df["Arrival"].max()).round("H")
+    st.success(f"📅 Detected Report Time: {report_time.strftime('%Y-%m-%d %H:%M')}")
+
+    # 🔹 Helper Functions
     def feed_icon(feed):
         return "👶" if "sm" in feed else "🧔"
 
-    # 🔹 Score Interpreter
     def interpret_score(score):
         return "high" if score >= 7 else "medium" if score >= 4 else "low"
 
-    # 🔹 Find Descending Sequences
     def find_descending_sequences(subset):
         sequences = []
         rows = subset[["Feed", "Arrival", "M #", "Origin", "Output"]].sort_values("Arrival")
@@ -40,7 +42,6 @@ if uploaded_file:
                     sequences.append(rows.iloc[i:i+3])
         return sequences
 
-    # 🔹 Merge Origins at Same Arrival
     def merge_sequence(seq):
         merged = []
         seen = {}
@@ -61,8 +62,8 @@ if uploaded_file:
                 seen[key] = len(merged) - 1
         return pd.DataFrame(merged)
 
-    # 🔹 A1 Detection
-    def detect_A1(df):
+    # 🔹 Position A1 Detection Logic
+    def detect_A1(df, report_time):
         strength_Ms = {0, 40, -40, 54, -54}
         anchors = {"Saturn", "Jupiter", "Kepler-62f", "Kepler-442b"}
         epics = {"Trinidad", "Tobago", "WASP-12b", "Macedonia"}
@@ -105,8 +106,8 @@ if uploaded_file:
 
         return results
 
-    # 🔹 Display A1 Matches
-    a1_results = detect_A1(df)
+    # 🔹 Run Detection and Display Results
+    a1_results = detect_A1(df, report_time)
     st.subheader(f"A1 – {len(a1_results)} result{'s' if len(a1_results)!=1 else ''}")
 
     for res in a1_results:
@@ -127,4 +128,4 @@ if uploaded_file:
                 st.table(merge_sequence(seq))
 
 else:
-    st.info("Awaiting CSV upload to begin detection...")
+    st.info("☝️ Upload your CSV to begin scanning for Position A1 patterns.")
