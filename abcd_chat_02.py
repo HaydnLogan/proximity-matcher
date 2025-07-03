@@ -1,131 +1,126 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 
-# 🔹 Title & File Upload
-st.title("🅰️ Position A1 Detector – Anchor Zone Scanner")
-uploaded_file = st.file_uploader("📤 Upload your report CSV", type="csv")
+# --- Constants ---
+ANCHOR_ORIGINS = ["Saturn", "Jupiter", "Kepler-62f", "Kepler-442b"]
+EPIC_ORIGINS = ["Trinidad", "Tobago", "WASP-12b", "Macedonia"]
+STRENGTH_NUMBERS = [0, 40, -40, 54, -54]
+
+# --- Helper Functions ---
+def is_strength(m): return m in STRENGTH_NUMBERS
+
+def get_feed_icon(feed):
+    if 'sm' in feed:
+        return '👶'
+    elif 'Bg' in feed:
+        return '🧔'
+    else:
+        return '❓'
+
+def label_today_rows(df, report_time):
+    df = df.copy()
+    df['Day_Label'] = df['Arrival'].apply(
+        lambda x: 'Today' if x.date() == report_time.date() else 'Other'
+    )
+    return df
+
+def sort_sequences(df):
+    df_sorted = df.copy()
+    df_sorted['Abs M'] = df_sorted['M #'].abs()
+    return df_sorted.sort_values(by='Abs M', ascending=False)
+
+def find_descending_sequences(df, output_col, report_time):
+    sequences = []
+    df_today = df[df['Arrival'] <= report_time]
+    grouped = df_today.groupby(output_col)
+
+    for output, group in grouped:
+        group_sorted = group.sort_values(by='Arrival')
+        group_sorted = sort_sequences(group_sorted)
+
+        for polarity in ['positive', 'negative']:
+            if polarity == 'positive':
+                subset = group_sorted[group_sorted['M #'] > 0]
+            else:
+                subset = group_sorted[group_sorted['M #'] < 0]
+
+            for i in range(len(subset) - 2):
+                trio = subset.iloc[i:i+3]
+                if len(trio) < 3:
+                    continue
+                arrival_set = set(trio['Arrival'].dt.date)
+                if len(arrival_set & {report_time.date()}) < 2:
+                    continue
+                if not any(origin in ANCHOR_ORIGINS + EPIC_ORIGINS for origin in trio['Origin']):
+                    continue
+                feeds = trio['Feed'].unique()
+                trio_sorted = sort_sequences(trio)
+                sequence = {
+                    'Output': output,
+                    'Rows': trio_sorted,
+                    'Feeds': feeds,
+                    'Strengths': [m for m in trio_sorted['M #'] if is_strength(m)],
+                    'Type': f"{len(trio)} Descending",
+                    'Feed_Icons': [get_feed_icon(f) for f in feeds]
+                }
+                sequences.append(sequence)
+    return sequences
+
+def merge_duplicate_sequences(sequences):
+    unique_sequences = []
+    seen_keys = set()
+
+    for seq in sequences:
+        key = (
+            seq['Output'],
+            tuple(sorted(seq['Rows']['M #'].abs())),
+            tuple(seq['Rows']['Arrival'].round('min'))
+        )
+        if key not in seen_keys:
+            unique_sequences.append(seq)
+            seen_keys.add(key)
+    return unique_sequences
+
+# --- Streamlit UI ---
+st.title("🔎 Position A1 Detector")
+uploaded_file = st.file_uploader("Upload a CSV file", type="csv")
 
 if uploaded_file:
-    # 🔹 Read and parse datetime
-    df = pd.read_csv(uploaded_file)
-    df["Arrival"] = pd.to_datetime(df["Arrival"], errors="coerce")
+    df = pd.read_csv(uploaded_file, parse_dates=['Arrival'])
 
-    # 🔹 Validate required columns
-    required_cols = {"Arrival", "Day", "Origin", "M #", "Feed", "Output"}
-    if not required_cols.issubset(df.columns):
-        st.error("❌ CSV is missing required columns. Expected: " + ", ".join(required_cols))
-        st.stop()
+    if 'Row' not in df.columns:
+        df['Row'] = df.index  # fallback
 
-    if df["Arrival"].isnull().any():
-        st.warning("⚠️ Some Arrival values couldn't be parsed as timestamps. They will be skipped.")
+    report_time = df['Arrival'].max()
+    df = label_today_rows(df, report_time)
 
-    # 🔹 Dynamic Report Time
-    report_time = pd.to_datetime(df["Arrival"].max()).round("H")
-    st.success(f"📅 Detected Report Time: {report_time.strftime('%Y-%m-%d %H:%M')}")
+    st.markdown(f"**Report Time:** {report_time.strftime('%Y-%m-%d %H:%M')}")
+    sequences = find_descending_sequences(df, 'Output', report_time)
+    sequences = merge_duplicate_sequences(sequences)
 
-    # 🔹 Helper Functions
-    def feed_icon(feed):
-        return "👶" if "sm" in feed else "🧔"
+    if not sequences:
+        st.info("No A1 sequences found.")
+    else:
+        st.markdown(f"### A1 – {len(sequences)} result{'s' if len(sequences)!=1 else ''}")
+        for i, seq in enumerate(sequences):
+            dt = seq['Rows']['Arrival'].max()
+            hours_ago = (report_time - dt).total_seconds() / 3600
+            m_list = list(seq['Rows']['M #'])
+            m_str = " → ".join(f"|{m}|" for m in m_list)
+            icons = "→".join(seq['Feed_Icons'])
+            summary = (
+                f"Scores {'high' if len(seq['Strengths']) >= 2 else 'low'}, "
+                f"{int(hours_ago)} hours ago, "
+                f"at {dt.strftime('%Y-%m-%d %H:%M')}, "
+                f"at {seq['Output']}, "
+                f"{1}x {seq['Type']}: {m_str} Cross [{icons}]"
+            )
 
-    def interpret_score(score):
-        return "high" if score >= 7 else "medium" if score >= 4 else "low"
-
-    def find_descending_sequences(subset):
-        sequences = []
-        rows = subset[["Feed", "Arrival", "M #", "Origin", "Output"]].sort_values("Arrival")
-        ms = rows["M #"].tolist()
-        for i in range(len(ms) - 2):
-            trio = ms[i:i+3]
-            if all(isinstance(m, (int, float)) for m in trio):
-                if abs(trio[0]) > abs(trio[1]) > abs(trio[2]):
-                    sequences.append(rows.iloc[i:i+3])
-        return sequences
-
-    def merge_sequence(seq):
-        merged = []
-        seen = {}
-        for idx, row in seq.iterrows():
-            key = (row["Arrival"], row["M #"])
-            if key in seen:
-                merged[seen[key]]["Origin"] += f", {row['Origin']}"
-            else:
-                merged.append({
-                    "Feed": row["Feed"],
-                    "Row": idx,
-                    "Arrival": row["Arrival"],
-                    "M #": row["M #"],
-                    "Origin": row["Origin"],
-                    "Output": row["Output"],
-                    "Type": f"{len(seq)} Descending"
-                })
-                seen[key] = len(merged) - 1
-        return pd.DataFrame(merged)
-
-    # 🔹 Position A1 Detection Logic
-    def detect_A1(df, report_time):
-        strength_Ms = {0, 40, -40, 54, -54}
-        anchors = {"Saturn", "Jupiter", "Kepler-62f", "Kepler-442b"}
-        epics = {"Trinidad", "Tobago", "WASP-12b", "Macedonia"}
-        results = []
-
-        today_start = report_time.replace(hour=18, minute=0)
-        today_end = report_time.replace(hour=23, minute=59)
-        df_today = df[(df["Day"] == "Today [0]") & df["Arrival"].between(today_start, today_end)]
-
-        for output in df["Output"].unique():
-            subset = df[df["Output"] == output]
-            if subset.shape[0] < 3:
-                continue
-
-            today_arrivals = df_today[df_today["Output"] == output]
-            if today_arrivals.empty:
-                continue
-
-            score = 0
-            ms_present = [m for m in subset["M #"] if m in strength_Ms]
-            score += len(ms_present)
-
-            if any(origin in anchors for origin in today_arrivals["Origin"]):
-                score += 2
-            if any(origin in epics for origin in today_arrivals["Origin"]):
-                score += 3
-            if any(arr == today_start for arr in today_arrivals["Arrival"]):
-                score += 1
-
-            sequences = find_descending_sequences(subset)
-            if sequences:
-                result = {
-                    "output": output,
-                    "score": score,
-                    "sequences": sequences,
-                    "feeds": subset["Feed"].nunique(),
-                    "timestamp": today_arrivals.iloc[0]["Arrival"]
-                }
-                results.append(result)
-
-        return results
-
-    # 🔹 Run Detection and Display Results
-    a1_results = detect_A1(df, report_time)
-    st.subheader(f"A1 – {len(a1_results)} result{'s' if len(a1_results)!=1 else ''}")
-
-    for res in a1_results:
-        hours_ago = (report_time - res["timestamp"]).total_seconds() / 3600
-        score_label = interpret_score(res["score"])
-        summaries = []
-        for seq in res["sequences"]:
-            m_path = " → ".join([f"|{row['M #']}|" for _, row in seq.iterrows()])
-            icons = "".join([feed_icon(row["Feed"]) for _, row in seq.iterrows()])
-            summaries.append(f"{m_path} Cross [{icons}]")
-
-        summary_line = f"• Scores {score_label}, {int(hours_ago)} hours ago, at {res['timestamp'].strftime('%Y-%m-%d %H:%M')}, at {res['output']}, " \
-                       f"{len(res['sequences'])}x {len(res['sequences'][0])} descending: " + " and ".join(summaries)
-
-        if st.button(summary_line):
-            for seq in res["sequences"]:
-                st.markdown(f"#### Detail for Output {res['output']}")
-                st.table(merge_sequence(seq))
-
-else:
-    st.info("☝️ Upload your CSV to begin scanning for Position A1 patterns.")
+            with st.expander(summary):
+                st.dataframe(
+                    seq['Rows'][['Feed', 'Row', 'Arrival', 'M #', 'Origin', 'Output']].assign(
+                        Type=seq['Type']
+                    ),
+                    hide_index=True
+                )
