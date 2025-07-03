@@ -20,9 +20,17 @@ def get_feed_icon(feed):
 
 def label_today_rows(df, report_time):
     df = df.copy()
-    df['Day_Label'] = df['Arrival'].apply(
-        lambda x: 'Today' if x.date() == report_time.date() else 'Other'
-    )
+    def label_fn(x):
+        if pd.isnull(x):
+            return 'Other'
+        if isinstance(x, pd.Timestamp):
+            return 'Today' if x.date() == report_time.date() else 'Other'
+        try:
+            parsed = pd.to_datetime(x)
+            return 'Today' if parsed.date() == report_time.date() else 'Other'
+        except:
+            return 'Other'
+    df['Day_Label'] = df['Arrival'].apply(label_fn)
     return df
 
 def sort_sequences(df):
