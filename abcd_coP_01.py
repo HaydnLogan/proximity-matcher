@@ -11,7 +11,7 @@ else:
     st.warning("Please upload a CSV file to begin.")
 
 
-report_time = pd.to_datetime(df["Arrival"].max())
+report_time = pd.to_datetime(df["Arrival"].max()).round("H")
 
 # 🔹 Feed Icon Conversion
 def feed_icon(feed):
