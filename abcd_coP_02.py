@@ -4,7 +4,7 @@ from datetime import datetime
 
 # 🔹 Title & File Upload
 st.title("🅰️ Position A1 Detector – Anchor Zone Scanner")
-uploaded_file = st.file_uploader("📤 Upload your report. cp v02", type="csv")
+uploaded_file = st.file_uploader("📤 Upload your report. cP v02", type="csv")
 
 if uploaded_file:
     # 🔹 Read and parse datetime
