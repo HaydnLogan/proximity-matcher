@@ -64,63 +64,63 @@ if uploaded_file:
 
     # 🔹 Position A1 Detection Logic
     def detect_A1(df, report_time):
-    strength_Ms = {0, 40, -40, 54, -54}
-    anchors = {"Saturn", "Jupiter", "Kepler-62f", "Kepler-442b"}
-    epics = {"Trinidad", "Tobago", "WASP-12b", "Macedonia"}
-    results = []
+        strength_Ms = {0, 40, -40, 54, -54}
+        anchors = {"Saturn", "Jupiter", "Kepler-62f", "Kepler-442b"}
+        epics = {"Trinidad", "Tobago", "WASP-12b", "Macedonia"}
+        results = []
 
     # 🔹 Allow all Today arrivals, but highlight if within 18:00–24:00
-    df_today = df[df["Day"] == "Today [0]"]
-    for output in df["Output"].unique():
-        subset = df[df["Output"] == output]
-        if subset.shape[0] < 3:
-            continue
+        df_today = df[df["Day"] == "Today [0]"]
+        for output in df["Output"].unique():
+            subset = df[df["Output"] == output]
+            if subset.shape[0] < 3:
+                continue
 
-        today_arrivals = df_today[df_today["Output"] == output]
-        if today_arrivals.empty:
-            continue
+            today_arrivals = df_today[df_today["Output"] == output]
+            if today_arrivals.empty:
+                continue
 
-        # 🔍 Diagnostic info to trace activity
-        st.write(f"🧪 Checking Output: {output}")
-        st.write(f"Total Travelers: {subset.shape[0]}, Today Travelers: {today_arrivals.shape[0]}")
+            # 🔍 Diagnostic info to trace activity
+            st.write(f"🧪 Checking Output: {output}")
+            st.write(f"Total Travelers: {subset.shape[0]}, Today Travelers: {today_arrivals.shape[0]}")
 
-        score = 0
+            score = 0
 
-        # 🔹 Strength Traveler Presence
-        ms_present = [m for m in subset["M #"] if m in strength_Ms]
-        st.write(f"Strength Travelers Found: {ms_present}")
-        score += len(ms_present)
+            # 🔹 Strength Traveler Presence
+            ms_present = [m for m in subset["M #"] if m in strength_Ms]
+            st.write(f"Strength Travelers Found: {ms_present}")
+            score += len(ms_present)
 
-        # 🔹 Anchor & EPIC Origin Boosts
-        origins_today = set(today_arrivals["Origin"])
-        if origins_today & anchors:
-            score += 2
-            st.write(f"Anchor Origins Present: {origins_today & anchors}")
-        if origins_today & epics:
-            score += 3
-            st.write(f"EPIC Origins Present: {origins_today & epics}")
+            # 🔹 Anchor & EPIC Origin Boosts
+            origins_today = set(today_arrivals["Origin"])
+            if origins_today & anchors:
+                score += 2
+                st.write(f"Anchor Origins Present: {origins_today & anchors}")
+            if origins_today & epics:
+                score += 3
+                st.write(f"EPIC Origins Present: {origins_today & epics}")
 
-        # 🔹 Precise Time Anchor
-        if any(arr.hour == 18 for arr in today_arrivals["Arrival"]):
-            score += 1
-            st.write("💫 Arrival at start of Traveler Day (18:00) detected.")
+            # 🔹 Precise Time Anchor
+            if any(arr.hour == 18 for arr in today_arrivals["Arrival"]):
+                score += 1
+                st.write("💫 Arrival at start of Traveler Day (18:00) detected.")
 
-        # 🔹 Sequence Search
-        sequences = find_descending_sequences(subset)
-        if sequences:
-            st.write(f"✅ {len(sequences)} Descending Sequence(s) Found")
-            result = {
-                "output": output,
-                "score": score,
-                "sequences": sequences,
-                "feeds": subset["Feed"].nunique(),
-                "timestamp": today_arrivals.iloc[0]["Arrival"]
-            }
-            results.append(result)
-        else:
-            st.write("🔸 No qualifying descending sequences at this output.")
+            # 🔹 Sequence Search
+            sequences = find_descending_sequences(subset)
+            if sequences:
+                st.write(f"✅ {len(sequences)} Descending Sequence(s) Found")
+                result = {
+                    "output": output,
+                    "score": score,
+                    "sequences": sequences,
+                    "feeds": subset["Feed"].nunique(),
+                    "timestamp": today_arrivals.iloc[0]["Arrival"]
+                }
+                results.append(result)
+            else:
+                st.write("🔸 No qualifying descending sequences at this output.")
 
-    return results
+        return results
 
 
     # 🔹 Run Detection and Display Results
