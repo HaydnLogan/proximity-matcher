@@ -102,7 +102,7 @@ def merge_same_arrival_origins(trio_df):
 st.title("🧭 A1 Position Detector")
 st.markdown("Upload a CSV and detect Position A1 patterns across Outputs.")
 
-uploaded_file = st.file_uploader("Upload your CSV", type="csv")
+uploaded_file = st.file_uploader("Upload your CSV. cG v03b", type="csv")
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
