@@ -5,7 +5,7 @@ from datetime import datetime
 st.set_page_config(layout="wide")
 st.title("Position A Model - A1 Detector")
 
-uploaded_file = st.file_uploader("Upload your CSV", type="csv")
+uploaded_file = st.file_uploader("Upload your CSV. cG v01b", type="csv")
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
     df['Arrival'] = pd.to_datetime(df['Arrival'], errors='coerce')
