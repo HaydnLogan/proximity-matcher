@@ -84,7 +84,7 @@ def merge_duplicate_sequences(sequences):
 
 # --- Streamlit UI ---
 st.title("🔎 Position A1 Detector")
-uploaded_file = st.file_uploader("Upload a CSV file", type="csv")
+uploaded_file = st.file_uploader("Upload a CSV file. cG v02", type="csv")
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file, parse_dates=['Arrival'])
