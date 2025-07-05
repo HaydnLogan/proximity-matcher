@@ -3,18 +3,7 @@ import pandas as pd
 from datetime import datetime
 from collections import defaultdict
 
-st.markdown("""
-    <style>
-        .reportview-container .main {
-            padding-left: 2rem;
-            padding-right: 2rem;
-            max-width: 95%;
-        }
-        .block-container {
-            padding-top: 2rem;
-        }
-    </style>
-""", unsafe_allow_html=True)
+st.set_page_config(layout="wide")
 
 
 # 📤 Upload CSV
