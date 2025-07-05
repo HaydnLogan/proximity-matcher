@@ -36,7 +36,7 @@ if uploaded_file:
                     "Output": row["Output"],
                     "Type": f"{len(seq)} Descending"
                 })
-                seen[key] = len(merged)
+                seen[key] = len(merged) - 1  # fix here: point to newly added row
         return pd.DataFrame(merged)
 
     def classify_A_model(row_0, prior_rows):
