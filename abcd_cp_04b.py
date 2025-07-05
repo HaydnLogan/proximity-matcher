@@ -64,7 +64,7 @@ if uploaded_file:
         return None, None
 
 
-    def detect_A_models(df):
+def detect_A_models(df):
     results = []
 
     for output in df["Output"].unique():
@@ -92,7 +92,7 @@ if uploaded_file:
     return results
 
 
-    def find_strict_descending_to_zero(df_subset):
+def find_strict_descending_to_zero(df_subset):
     sequences = []
     rows = df_subset.sort_values("Arrival")
     ms_list = rows["M #"].tolist()
