@@ -4,7 +4,7 @@ from datetime import datetime
 
 st.title("🅰️ Position A Models – M # 0 Confluence Scanner")
 
-uploaded_file = st.file_uploader("📤 Upload your report CSV. cP v04c", type="csv")
+uploaded_file = st.file_uploader("📤 Upload your report CSV. cP v04c with verfications first", type="csv")
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
