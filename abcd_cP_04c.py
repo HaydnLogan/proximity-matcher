@@ -123,7 +123,7 @@ if uploaded_file:
             seen_abs.add(abs_m)
             last_abs = abs_m
 
-    return sequences
+        return sequences
 
 
 
