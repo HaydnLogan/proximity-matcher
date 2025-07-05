@@ -63,27 +63,64 @@ if uploaded_file:
         if not is_anchor and time == "late" and not prior_has_strong: return "A09", "Late general 0"
         return None, None
 
-    def detect_A_models(df):
-        results = []
-        for output in df["Output"].unique():
-            subset = df[df["Output"] == output].sort_values("Arrival")
-            if subset.shape[0] < 3: continue
-            last = subset.iloc[-1]
-            if last["M #"] != 0: continue
-            prior = subset.iloc[:-1]
-            if prior.shape[0] < 2: continue
 
+    def detect_A_models(df):
+    results = []
+
+    for output in df["Output"].unique():
+        subset = df[df["Output"] == output]
+        sequences = find_strict_descending_to_zero(subset)
+
+        for seq in sequences:
+            if seq.shape[0] < 3: continue
+            if seq.iloc[-1]["M #"] != 0: continue
+
+            prior = seq.iloc[:-1]
+            last = seq.iloc[-1]
             model, label = classify_A_model(last, prior)
+
             if model:
                 results.append({
                     "model": model,
                     "label": label,
                     "output": output,
                     "timestamp": last["Arrival"],
-                    "sequence": subset,
-                    "feeds": subset["Feed"].nunique()
+                    "sequence": seq,
+                    "feeds": seq["Feed"].nunique()
                 })
-        return results
+
+    return results
+
+
+    def find_strict_descending_to_zero(df_subset):
+    sequences = []
+    rows = df_subset.sort_values("Arrival")
+    ms_list = rows["M #"].tolist()
+
+    for i in range(len(ms_list) - 2):
+        path = []
+        seen = set()
+
+        for j in range(i, len(ms_list)):
+            m = ms_list[j]
+            abs_m = abs(m)
+
+            if m == 0:
+                if len(path) >= 2:
+                    seq_rows = rows.iloc[i:j+1]
+                    sequences.append(seq_rows)
+                break
+
+            if abs_m in seen:
+                break
+            if path and abs_m >= abs(path[-1]):
+                break
+
+            path.append(m)
+            seen.add(abs_m)
+
+    return sequences
+
 
     # 🔍 Run detection
     a_results = detect_A_models(df)
