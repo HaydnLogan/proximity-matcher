@@ -64,62 +64,62 @@ if uploaded_file:
         return None, None
 
 
-def detect_A_models(df):
-    results = []
+    def detect_A_models(df):
+        results = []
 
-    for output in df["Output"].unique():
-        subset = df[df["Output"] == output]
-        sequences = find_strict_descending_to_zero(subset)
+        for output in df["Output"].unique():
+            subset = df[df["Output"] == output]
+            sequences = find_strict_descending_to_zero(subset)
 
-        for seq in sequences:
-            if seq.shape[0] < 3: continue
-            if seq.iloc[-1]["M #"] != 0: continue
+            for seq in sequences:
+                if seq.shape[0] < 3: continue
+                if seq.iloc[-1]["M #"] != 0: continue
 
-            prior = seq.iloc[:-1]
-            last = seq.iloc[-1]
-            model, label = classify_A_model(last, prior)
+                prior = seq.iloc[:-1]
+                last = seq.iloc[-1]
+                model, label = classify_A_model(last, prior)
 
-            if model:
-                results.append({
-                    "model": model,
-                    "label": label,
-                    "output": output,
-                    "timestamp": last["Arrival"],
-                    "sequence": seq,
-                    "feeds": seq["Feed"].nunique()
-                })
+                if model:
+                    results.append({
+                        "model": model,
+                        "label": label,
+                        "output": output,
+                        "timestamp": last["Arrival"],
+                        "sequence": seq,
+                        "feeds": seq["Feed"].nunique()
+                    })
 
-    return results
+        return results
 
 
-def find_strict_descending_to_zero(df_subset):
-    sequences = []
-    rows = df_subset.sort_values("Arrival")
-    ms_list = rows["M #"].tolist()
+    def find_strict_descending_to_zero(df_subset):
+        sequences = []
+        rows = df_subset.sort_values("Arrival")
+        ms_list = rows["M #"].tolist()
 
-    for i in range(len(ms_list) - 2):
-        path = []
-        seen = set()
+        for i in range(len(ms_list) - 2):
+            path = []
+            seen = set()
 
-        for j in range(i, len(ms_list)):
-            m = ms_list[j]
-            abs_m = abs(m)
+            for j in range(i, len(ms_list)):
+                m = ms_list[j]
+                abs_m = abs(m)
 
-            if m == 0:
-                if len(path) >= 2:
-                    seq_rows = rows.iloc[i:j+1]
-                    sequences.append(seq_rows)
-                break
+                if m == 0:
+                    if len(path) >= 2:
+                        seq_rows = rows.iloc[i:j+1]
+                        sequences.append(seq_rows)
+                    break
 
-            if abs_m in seen:
-                break
-            if path and abs_m >= abs(path[-1]):
-                break
+                if abs_m in seen:
+                    break
+                if path and abs_m >= abs(path[-1]):
+                    break
 
-            path.append(m)
-            seen.add(abs_m)
-
-    return sequences
+                path.append(m)
+                seen.add(abs_m)
+    
+        return sequences
 
 
     # 🔍 Run detection
