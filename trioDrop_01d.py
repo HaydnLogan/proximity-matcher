@@ -18,9 +18,14 @@ day_start_hour = int(day_start_choice.split(":")[0])
 scope_type = st.radio("Scope by", ["Rows", "Days"])
 scope_value = st.number_input(f"Enter number of {scope_type.lower()}", min_value=1, value=10)
 
-# 🧮 Utility Functions
+# # 🧮 Utility Functions
 def clean_timestamp(ts):
-    return pd.to_datetime(ts.split("-")[0])
+    if isinstance(ts, str):
+        ts = ts.split("-")[0]  # Remove timezone offset
+        ts = ts.replace("T", " ")  # Replace T with space
+    return pd.to_datetime(ts, errors="coerce")
+# def clean_timestamp(ts):
+#     return pd.to_datetime(ts.split("-")[0])
 
 def extract_origins(columns):
     origins = {}
@@ -76,7 +81,12 @@ def get_most_recent_time(df):
 
 def get_input_value(df, report_time):
     match = df[df["time"] == report_time]
-    return match.iloc[0]["open"] if not match.empty and "open" in match.columns else None
+    if not match.empty and "open" in match.columns:
+        return match.iloc[-1]["open"]  # Get bottom-most match
+    return None
+# def get_input_value(df, report_time):
+#     match = df[df["time"] == report_time]
+#     return match.iloc[0]["open"] if not match.empty and "open" in match.columns else None
 
 # 📥 Load and normalize feeds
 small_df = pd.read_csv(small_feed_file)
@@ -85,6 +95,10 @@ big_df = pd.read_csv(big_feed_file)
 # Normalize column names to lowercase and trimmed
 small_df.columns = small_df.columns.str.strip().str.lower()
 big_df.columns = big_df.columns.str.strip().str.lower()
+# added to 01d
+df.columns = df.columns.str.strip().str.lower()
+df["time"] = df["time"].apply(clean_timestamp)
+
 
 # Clean timestamp column
 small_df["time"] = small_df["time"].apply(clean_timestamp)
