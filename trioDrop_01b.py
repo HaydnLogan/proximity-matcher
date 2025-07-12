@@ -65,8 +65,8 @@ def get_day_index(arrival_time, report_time, start_hour):
     return f"[{int(days_diff)}]"
 
 # 📊 Pivot Formula
-def calculate_pivot(H, L, C, M_Value):
-    return ((H + L + C) / 3) + M_Value * (H - L)
+def calculate_pivot(H, L, C, M_value):
+    return ((H + L + C) / 3) + M_value * (H - L)
 
 # 🔄 Feed Processor
 def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour, measurements):
