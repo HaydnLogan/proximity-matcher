@@ -69,32 +69,59 @@ def calculate_pivot(H, L, C, M_value):
     return ((H + L + C) / 3) + M_value * (H - L)
 
 def clean_timestamp(ts):
-    return pd.to_datetime(ts.split("-")[0])
+    return pd.to_datetime(ts.split("-")[0]) if isinstance(ts, str) else pd.to_datetime(ts)
 
 def get_most_recent_time(df):
-    df["time"] = df["time"].apply(clean_timestamp)
     return df["time"].max()
 
 def get_input_value(df, report_time):
-    input_row = df[df["time"] == report_time]
-    if not input_row.empty and "open" in input_row.columns:
-        return input_row.iloc[0]["open"]
-    return None
+    match = df[df["time"] == report_time]
+    return match.iloc[0]["open"] if not match.empty and "open" in match.columns else None
 
-# 🔍 Establish Report Time if "Most Current" is selected
+# 📥 Load and normalize feeds
+small_df = pd.read_csv(small_feed_file)
+big_df = pd.read_csv(big_feed_file)
+
+# Normalize column names to lowercase and trimmed
+small_df.columns = small_df.columns.str.strip().str.lower()
+big_df.columns = big_df.columns.str.strip().str.lower()
+
+# Clean timestamp column
+small_df["time"] = small_df["time"].apply(clean_timestamp)
+big_df["time"] = big_df["time"].apply(clean_timestamp)
+
+# 📅 Determine Report Time
 if report_mode == "Most Current":
-    small_df["time"] = small_df["time"].apply(clean_timestamp)
-    big_df["time"] = big_df["time"].apply(clean_timestamp)
+    report_time = max(get_most_recent_time(small_df), get_most_recent_time(big_df))
 
-    most_recent_small = get_most_recent_time(small_df)
-    most_recent_big = get_most_recent_time(big_df)
-
-    report_time = max(most_recent_small, most_recent_big)
-
-# 🎯 Grab universal Input value from report row
+# 🎯 Get global Input value from Report Time row
 input_value = get_input_value(small_df, report_time)
 if input_value is None:
     input_value = get_input_value(big_df, report_time)
+
+# 🚦 Safety Check
+if report_time is None or input_value is None:
+    st.error("⚠️ Unable to determine Report Time or Input value. Please check your uploads.")
+else:
+    st.success(f"✅ Report Time set to: {report_time}")
+    st.success(f"✅ Input value found: {input_value}")
+
+
+
+# # 🔍 Establish Report Time if "Most Current" is selected
+# if report_mode == "Most Current":
+#     small_df["time"] = small_df["time"].apply(clean_timestamp)
+#     big_df["time"] = big_df["time"].apply(clean_timestamp)
+
+#     most_recent_small = get_most_recent_time(small_df)
+#     most_recent_big = get_most_recent_time(big_df)
+
+#     report_time = max(most_recent_small, most_recent_big)
+
+# # 🎯 Grab universal Input value from report row
+# input_value = get_input_value(small_df, report_time)
+# if input_value is None:
+#     input_value = get_input_value(big_df, report_time)
 
 
 # 🔄 Feed Processor
