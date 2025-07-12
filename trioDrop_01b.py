@@ -85,7 +85,7 @@ def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour
             df = df[df["time"] >= cutoff]
 
     for origin, cols in origins.items():
-        relevant_rows = df[["time", "Open"] + cols].dropna()
+        relevant_rows = df[["time", "open"] + cols].dropna()
         for i in range(len(relevant_rows)-1):
             current = relevant_rows.iloc[i]
             above = relevant_rows.iloc[i+1]
@@ -94,7 +94,7 @@ def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour
             if is_special_origin and report_time:
                 if current["time"] == report_time:
                     H, L, C = current[cols[0]], current[cols[1]], current[cols[2]]
-                    input_value = current["Open"]
+                    input_value = current["open"]
                     for _, row in measurements.iterrows():
                         output = calculate_pivot(H, L, C, row["M Value"])
                         day_index = get_day_index(current["time"], report_time, start_hour)
@@ -114,7 +114,7 @@ def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour
                         })
             elif not is_special_origin and changed:
                 H, L, C = current[cols[0]], current[cols[1]], current[cols[2]]
-                input_value = current["Open"]
+                input_value = current["open"]
                 for _, row in measurements.iterrows():
                     output = calculate_pivot(H, L, C, row["M Value"])
                     day_index = get_day_index(current["time"], report_time, start_hour)
