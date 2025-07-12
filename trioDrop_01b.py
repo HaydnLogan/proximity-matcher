@@ -96,7 +96,7 @@ def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour
                     H, L, C = current[cols[0]], current[cols[1]], current[cols[2]]
                     input_value = current["open"]
                     for _, row in measurements.iterrows():
-                        output = calculate_pivot(H, L, C, row["M Value"])
+                        output = calculate_pivot(H, L, C, row["M value"])
                         day_index = get_day_index(current["time"], report_time, start_hour)
                         new_data_rows.append({
                             "Feed": feed_type,
@@ -116,7 +116,7 @@ def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour
                 H, L, C = current[cols[0]], current[cols[1]], current[cols[2]]
                 input_value = current["open"]
                 for _, row in measurements.iterrows():
-                    output = calculate_pivot(H, L, C, row["M Value"])
+                    output = calculate_pivot(H, L, C, row["M value"])
                     day_index = get_day_index(current["time"], report_time, start_hour)
                     new_data_rows.append({
                         "Feed": feed_type,
