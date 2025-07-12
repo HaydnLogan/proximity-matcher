@@ -117,7 +117,9 @@ if small_feed_file and big_feed_file and measurement_file:
     small_df = pd.read_csv(small_feed_file)
     big_df = pd.read_csv(big_feed_file)
     measure_df = pd.read_excel(measurement_file)
-    group_2a = measure_df[measure_df["Group"] == "2a"]
+    # Read only the sheet named "2a"
+    group_2a = pd.read_excel(measurement_file, sheet_name="2a")
+    #group_2a = measure_df[measure_df["Group"] == "2a"]
 
     results = []
     results += process_feed(small_df, "Sm", report_time, scope_type, scope_value, day_start_hour, group_2a)
