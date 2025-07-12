@@ -25,17 +25,38 @@ def clean_timestamp(ts):
 def extract_origins(columns):
     origins = {}
     for col in columns:
-        if col == "time" or col == "Open":
+        col = col.strip().lower()
+        if col in ["time", "open"]:
             continue
-        parts = col.split()
-        if "[" in col:
-            name = " ".join(parts[:-1])
-            suffix = col[col.find("["):col.find("]")+1]
-            group_id = f"{name} {suffix}".replace(" H", "").replace(" L", "").replace(" C", "")
-        else:
-            group_id = " ".join(parts[:-1]).replace(" H", "").replace(" L", "").replace(" C", "")
-        origins.setdefault(group_id, []).append(col)
-    return origins
+        if any(suffix in col for suffix in [" h", " l", " c"]):
+            # Normalize base name and brackets
+            bracket = ""
+            if "[" in col and "]" in col:
+                bracket = col[col.find("["):col.find("]")+1]
+            # Remove trailing H/L/C and assemble group ID
+            origin_core = col.replace(" h", "").replace(" l", "").replace(" c", "")
+            group_id = origin_core + bracket
+            origins.setdefault(group_id, []).append(col)
+    # Only keep origins that have exactly 3 columns (H, L, C)
+    return {origin: cols for origin, cols in origins.items() if len(cols) == 3}
+
+
+# def extract_origins(columns):
+#     origins = {}
+#     for col in columns:
+#         col = col.strip().lower()
+#         if col in ["time", "open"]:
+#             continue
+#         if any(suffix in col for suffix in [" h", " l", " c"]):
+#             # Example: "wasp-12b h[1]" → origin_key = "wasp-12b[1]"
+#             base, *rest = col.split()
+#             bracket = ""
+#             if "[" in col and "]" in col:
+#                 bracket = col[col.find("["):col.find("]")+1]
+#             base_origin = " ".join(base.split())  # Handles prefixes like "mercury", "wasp-12b"
+#             group_id = base_origin.replace(" h", "").replace(" l", "").replace(" c", "") + bracket
+#             origins.setdefault(group_id, []).append(col)
+#     return origins
 
 def get_day_index(arrival_time, report_time, start_hour):
     if not report_time: return "[0] Today"
@@ -49,6 +70,7 @@ def calculate_pivot(H, L, C, M_Value):
 
 # 🔄 Feed Processor
 def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour, measurements):
+    df.columns = df.columns.str.strip().str.lower()
     df["time"] = df["time"].apply(clean_timestamp)
     df = df.iloc[::-1]  # bottom-up
     origins = extract_origins(df.columns)
