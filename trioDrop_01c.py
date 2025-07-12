@@ -166,6 +166,8 @@ def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour
 # 🧬 Main Runner
 if small_feed_file and big_feed_file and measurement_file:
     small_df = pd.read_csv(small_feed_file)
+    small_df.columns = small_df.columns.str.strip().str.lower()
+    small_df["time"] = small_df["time"].apply(clean_timestamp)
     big_df = pd.read_csv(big_feed_file)
     measure_df = pd.read_excel(measurement_file)
     # Read only the sheet named "2a"
