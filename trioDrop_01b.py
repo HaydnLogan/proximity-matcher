@@ -68,6 +68,35 @@ def get_day_index(arrival_time, report_time, start_hour):
 def calculate_pivot(H, L, C, M_value):
     return ((H + L + C) / 3) + M_value * (H - L)
 
+def clean_timestamp(ts):
+    return pd.to_datetime(ts.split("-")[0])
+
+def get_most_recent_time(df):
+    df["time"] = df["time"].apply(clean_timestamp)
+    return df["time"].max()
+
+def get_input_value(df, report_time):
+    input_row = df[df["time"] == report_time]
+    if not input_row.empty and "open" in input_row.columns:
+        return input_row.iloc[0]["open"]
+    return None
+
+# 🔍 Establish Report Time if "Most Current" is selected
+if report_mode == "Most Current":
+    small_df["time"] = small_df["time"].apply(clean_timestamp)
+    big_df["time"] = big_df["time"].apply(clean_timestamp)
+
+    most_recent_small = get_most_recent_time(small_df)
+    most_recent_big = get_most_recent_time(big_df)
+
+    report_time = max(most_recent_small, most_recent_big)
+
+# 🎯 Grab universal Input value from report row
+input_value = get_input_value(small_df, report_time)
+if input_value is None:
+    input_value = get_input_value(big_df, report_time)
+
+
 # 🔄 Feed Processor
 def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour, measurements):
     df.columns = df.columns.str.strip().str.lower()
@@ -94,7 +123,7 @@ def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour
             if is_special_origin and report_time:
                 if current["time"] == report_time:
                     H, L, C = current[cols[0]], current[cols[1]], current[cols[2]]
-                    input_value = current["open"]
+                    # input_value = current["open"]
                     for _, row in measurements.iterrows():
                         output = calculate_pivot(H, L, C, row["M value"])
                         day_index = get_day_index(current["time"], report_time, start_hour)
