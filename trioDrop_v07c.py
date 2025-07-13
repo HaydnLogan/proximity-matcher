@@ -40,10 +40,17 @@ def extract_origins(columns):
             origins.setdefault(group_id, []).append(col)
     return {origin: cols for origin, cols in origins.items() if len(cols) == 3}
 
-def get_day_index(arrival, report, start_hour):
-    if not report:
+def get_day_index(arrival, report_time, start_hour):
+    if not report_time:
         return "[0] Today"
-    days_diff = (arrival - dt.datetime.combine(report.date(), dt.time(start_hour))) // dt.timedelta(days=1)
+
+    # Compute start of "Day 0" (the custom day the report time falls in)
+    report_day_start = report_time.replace(hour=start_hour, minute=0, second=0, microsecond=0)
+    if report_time.hour < start_hour:
+        report_day_start -= dt.timedelta(days=1)
+
+    # Compute how many full custom "days" away arrival is from the report's day start
+    days_diff = (arrival - report_day_start) // dt.timedelta(days=1)
     return f"[{int(days_diff)}]"
 
 def calculate_pivot(H, L, C, M_value):
