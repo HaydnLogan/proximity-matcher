@@ -164,7 +164,11 @@ if small_feed_file and big_feed_file and measurement_file:
             
             st.dataframe(final_df)
 
+            timestamp_str = report_time.strftime("%y-%m-%d_%H-%M")
+            filename = f"origin_report_{timestamp_str}.csv"
+
             csv_bytes = final_df.to_csv(index=False).encode()
-            st.download_button("📥 Download Report CSV", data=csv_bytes, file_name="origin_report.csv", mime="text/csv")
+            st.download_button("📥 Download Report CSV", data=csv_bytes, file_name=filename, mime="text/csv")
+
     except Exception as e:
         st.error(f"❌ Processing error: {e}")
