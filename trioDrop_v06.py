@@ -19,8 +19,9 @@ scope_value = st.number_input(f"Enter number of {scope_type.lower()}", min_value
 # 🔧 Utilities
 def clean_timestamp(ts):
     if isinstance(ts, str):
-        ts = ts.split("-")[0].replace("T", " ")
+        return pd.to_datetime(ts, utc=True).tz_convert(None)
     return pd.to_datetime(ts, errors="coerce")
+
 
 def extract_origins(columns):
     origins = {}
@@ -154,6 +155,7 @@ if small_feed_file and big_feed_file and measurement_file:
             results += process_feed(small_df, "Sm", report_time, scope_type, scope_value, day_start_hour, group_2a, input_value)
             results += process_feed(big_df, "Bg", report_time, scope_type, scope_value, day_start_hour, group_2a, input_value)
 
+            final_df["Arrival"] = final_df["Arrival"].dt.strftime("%#d-%b-%y %H:%M")
             final_df = pd.DataFrame(results)
             final_df.sort_values(by=["Output", "Arrival"], ascending=[False, True], inplace=True)
 
