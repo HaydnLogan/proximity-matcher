@@ -22,6 +22,21 @@ def clean_timestamp(ts):
         ts = ts.split("-")[0].replace("T", " ")
     return pd.to_datetime(ts, errors="coerce")
 
+# Clean feeds
+small_df.columns = small_df.columns.str.strip().str.lower()
+small_df["time"] = small_df["time"].apply(clean_timestamp)
+big_df.columns = big_df.columns.str.strip().str.lower()
+big_df["time"] = big_df["time"].apply(clean_timestamp)
+
+# Debug feed timestamps
+st.write("🕒 Most recent time in small feed:", get_most_recent_time(small_df))
+st.write("🕒 Most recent time in big feed:", get_most_recent_time(big_df))
+
+# Determine report time
+if report_mode == "Most Current":
+    report_time = max(get_most_recent_time(small_df), get_most_recent_time(big_df))
+
+
 def extract_origins(columns):
     origins = {}
     for col in columns:
