@@ -155,10 +155,11 @@ if small_feed_file and big_feed_file and measurement_file:
             results += process_feed(small_df, "Sm", report_time, scope_type, scope_value, day_start_hour, group_2a, input_value)
             results += process_feed(big_df, "Bg", report_time, scope_type, scope_value, day_start_hour, group_2a, input_value)
 
-            final_df["Arrival"] = final_df["Arrival"].dt.strftime("%#d-%b-%y %H:%M")
             final_df = pd.DataFrame(results)
             final_df.sort_values(by=["Output", "Arrival"], ascending=[False, True], inplace=True)
 
+            final_df["Arrival"] = pd.to_datetime(final_df["Arrival"]).dt.strftime("%#d-%b-%y %H:%M")
+            
             st.dataframe(final_df)
 
             csv_bytes = final_df.to_csv(index=False).encode()
