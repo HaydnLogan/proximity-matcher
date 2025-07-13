@@ -150,7 +150,7 @@ if small_feed_file and big_feed_file and measurement_file:
             results += process_feed(big_df, "Bg", report_time, scope_type, scope_value, day_start_hour, group_2a, input_value)
 
             final_df = pd.DataFrame(results)
-            final_df.sort_values(by=["output", "arrival"], ascending=[False, True], inplace=True)
+            final_df.sort_values(by=["Output", "Arrival"], ascending=[False, True], inplace=True)
 
             st.dataframe(final_df)
 
