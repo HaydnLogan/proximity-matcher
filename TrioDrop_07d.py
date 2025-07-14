@@ -8,6 +8,21 @@ st.header("🧬 Data Feed Processor v07d")
 small_feed_file = st.file_uploader("Upload small feed", type="csv")
 big_feed_file = st.file_uploader("Upload big feed", type="csv")
 measurement_file = st.file_uploader("Upload measurement file", type=["xlsx", "xls"])
+# 📄 Detect available sheet names once the file is uploaded
+available_sheets = []
+if measurement_file is not None:
+    try:
+        xls = pd.ExcelFile(measurement_file)
+        available_sheets = xls.sheet_names
+    except Exception as e:
+        st.error(f"❌ Failed to read sheet names: {e}")
+sheet_choice = None
+if available_sheets:
+    default_sheet = "2a" if "2a" in available_sheets else available_sheets[0]
+    sheet_choice = st.selectbox("Select measurement tab", available_sheets, index=available_sheets.index(default_sheet))
+
+
+
 
 # 📅 Settings
 report_mode = st.radio("Select Report Time & Date", ["Most Current", "Choose a time"])
@@ -223,8 +238,8 @@ if small_feed_file and big_feed_file and measurement_file:
     try:
         small_df = pd.read_csv(small_feed_file)
         big_df = pd.read_csv(big_feed_file)
-        group_2a = pd.read_excel(measurement_file, sheet_name="2a")
-        group_2a.columns = group_2a.columns.str.strip().str.lower()
+        measurements = pd.read_excel(measurement_file, sheet_name=sheet_choice)
+        measurements.columns = measurements.columns.str.strip().str.lower()
 
         # Clean feeds
         small_df.columns = small_df.columns.str.strip().str.lower()
@@ -251,8 +266,8 @@ if small_feed_file and big_feed_file and measurement_file:
             st.success(f"✅ Input value: {input_value}")
 
             results = []
-            results += process_feed(small_df, "Sm", report_time, scope_type, scope_value, day_start_hour, group_2a, input_value)
-            results += process_feed(big_df, "Bg", report_time, scope_type, scope_value, day_start_hour, group_2a, input_value)
+            results += process_feed(small_df, "Sm", report_time, scope_type, scope_value, day_start_hour, measurements, input_value)
+            results += process_feed(big_df, "Bg", report_time, scope_type, scope_value, day_start_hour, measurements, input_value)
 
             final_df = pd.DataFrame(results)
             final_df.sort_values(by=["Output", "Arrival"], ascending=[False, True], inplace=True)
