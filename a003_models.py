@@ -49,8 +49,8 @@ def sequence_signature(seq):
     return tuple(seq["M #"].tolist())
 
 def classify_A_model(row_0, prior_rows):
-    epic = {"Trinidad", "Tobago", "WASP-12b", "Macedonia"}
-    anchor = {"Saturn", "Jupiter", "Kepler-62f", "Kepler-442b"}
+    epic = {"trinidad", "tobago", "wasp-12b", "macedonia"}
+    anchor = {"spain", "saturn", "jupiter", "kepler-62f", "kepler-442b"}
 
     t0 = row_0["Arrival"]
     o0 = row_0["Origin"]
