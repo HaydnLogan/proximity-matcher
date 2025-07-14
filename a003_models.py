@@ -5,12 +5,8 @@ from collections import defaultdict
 
 # 🤖 Detection logic 
 
-st.set_page_config(layout="wide")
-st.title("🅰️ Position A Models – Output-Centric Scanner v07c")
-
-uploaded_file = st.file_uploader("📄 Upload your traveler report CSV", type="csv")
-
-def feed_icon(feed): return "👶" if "sm" in feed else "🧔"
+def feed_icon(feed):
+    return "👶" if "sm" in feed.lower() else "🧔"
 
 def find_flexible_descents(df_subset):
     rows = df_subset[df_subset["Output"] > 0].sort_values("Arrival").reset_index(drop=True)
@@ -38,6 +34,7 @@ def find_flexible_descents(df_subset):
             seen.add(abs_m)
             last_abs = abs_m
 
+    # Filter embedded shorter sequences
     filtered = []
     all_signatures = [tuple(seq["M #"].tolist()) for seq in raw_sequences]
 
@@ -48,11 +45,13 @@ def find_flexible_descents(df_subset):
 
     return filtered
 
-def sequence_signature(seq): return tuple(seq["M #"].tolist())
+def sequence_signature(seq):
+    return tuple(seq["M #"].tolist())
 
 def classify_A_model(row_0, prior_rows):
     epic = {"Trinidad", "Tobago", "WASP-12b", "Macedonia"}
     anchor = {"Saturn", "Jupiter", "Kepler-62f", "Kepler-442b"}
+
     t0 = row_0["Arrival"]
     o0 = row_0["Origin"]
     time = "open" if t0.hour == 18 and t0.minute == 0 else \
@@ -86,7 +85,8 @@ def detect_A_models(df):
             if seq.shape[0] < 3 or seq.iloc[-1]["M #"] != 0:
                 continue
             sig = sequence_signature(seq)
-            if sig in seen_signatures: continue
+            if sig in seen_signatures:
+                continue
             seen_signatures.add(sig)
 
             prior = seq.iloc[:-1]
@@ -123,7 +123,7 @@ def show_a_model_results(model_outputs, report_time):
 
         with st.expander(header):
             if results:
-                def render_result_group(title, group):
+                def render_group(title, group):
                     st.markdown(f"#### {title}")
                     output_groups = defaultdict(list)
                     for r in group:
@@ -133,36 +133,45 @@ def show_a_model_results(model_outputs, report_time):
                         latest = max(items, key=lambda r: r["timestamp"])
                         hrs = int((report_time - latest["timestamp"]).total_seconds() / 3600)
                         ts = latest["timestamp"].strftime('%-m/%-d/%y %H:%M')
-                        sub_header = f"🔸 Output {out_val:,.3f} – {len(items)} descending {hrs} hours at {ts}"
+                        sub = f"🔸 Output {out_val:,.3f} – {len(items)} descending {hrs} hours at {ts}"
 
-                        with st.expander(sub_header):
+                        with st.expander(sub):
                             for res in items:
                                 seq = res["sequence"]
                                 m_path = " → ".join([f"|{row['M #']}|" for _, row in seq.iterrows()])
                                 icons = "".join([feed_icon(row["Feed"]) for _, row in seq.iterrows()])
-                                summary = f"{m_path} Cross [{icons}]"
-                                st.markdown(summary)
+                                st.markdown(f"{m_path} Cross [{icons}]")
                                 st.table(seq.reset_index(drop=True))
 
                 if today_results:
-                    render_result_group("📅 Today", today_results)
+                    render_group("📅 Today", today_results)
                 if other_results:
-                    render_result_group("📦 Other Days", other_results)
+                    render_group("📦 Other Days", other_results)
                 if not today_results and not other_results:
                     st.markdown("No matching outputs.")
             else:
                 st.markdown("No matching outputs.")
 
-if uploaded_file:
-    df = pd.read_csv(uploaded_file)
+# 🔁 Importable entry point
+def run_a_model_detection(df):
     df["Arrival"] = pd.to_datetime(df["Arrival"], errors="coerce")
     required = {"Arrival", "Day", "Origin", "M #", "Feed", "Output"}
     if not required.issubset(df.columns):
         st.error("Missing columns: " + ", ".join(required - set(df.columns)))
-        st.stop()
+        return
 
     df = df[df["Output"] > 0].copy()
     model_outputs, report_time = detect_A_models(df)
     show_a_model_results(model_outputs, report_time)
-else:
-    st.info("☝️ Upload a CSV file to begin detection.")
+
+# 🧪 If run directly
+if __name__ == "__main__" or st._is_running_with_streamlit:
+    st.set_page_config(layout="wide")
+    st.title("🅰️ Position A Models – Output-Centric Scanner v07c")
+    uploaded_file = st.file_uploader("📄 Upload your traveler report CSV", type="csv")
+
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file)
+        run_a_model_detection(df)
+    else:
+        st.info("☝️ Upload a CSV file to begin detection.")
