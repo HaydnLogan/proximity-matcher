@@ -50,7 +50,7 @@ def sequence_signature(seq):
 
 def classify_A_model(row_0, prior_rows):
     epic = {"trinidad", "tobago", "wasp-12b", "macedonia"}
-    anchor = {"spain", "saturn", "jupiter", "kepler-62f", "kepler-442b"}
+    anchor = {"spain", "saturn", "jupiter", "kepler-62", "kepler-44"}
 
     t0 = row_0["Arrival"]
     o0 = row_0["Origin"]
