@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import datetime as dt
 from a02_utils import clean_timestamp, get_most_recent_time, get_input_value, process_feed
-from a003_a_models_02cp import run_a_model_detection
+from a003_a_models_01cp import run_a_model_detection
 
 # 🔌 Streamlit interface (UI + orchestration)
 
