@@ -80,7 +80,7 @@ if small_feed_file and big_feed_file and measurement_file:
             # ✅ Optional: A Model Detection
             run_a_model = st.checkbox("🔎 Run A Model Detection")
             if run_a_model:
-                from a_model import detect_A_models, show_a_model_results
+                from a003_models import detect_A_models, show_a_model_results
                 final_df["Arrival"] = pd.to_datetime(final_df["Arrival"], errors="coerce")
                 model_outputs, rep_time = detect_A_models(final_df)
                 show_a_model_results(model_outputs, rep_time)
