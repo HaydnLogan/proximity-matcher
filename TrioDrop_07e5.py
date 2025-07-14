@@ -252,54 +252,34 @@ def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour
                     })
     return new_data_rows
 
-# 🧬 Main Runner
-if small_feed_file and big_feed_file and measurement_file:
-    try:
-        small_df = pd.read_csv(small_feed_file)
-        big_df = pd.read_csv(big_feed_file)
-        measurements = pd.read_excel(measurement_file, sheet_name=sheet_choice)
-        measurements.columns = measurements.columns.str.strip().str.lower()
+# 🧬 Main Runner (Process + Display only)
+try:
+    input_value = get_input_value(small_df, report_time)
+    if input_value is None:
+        input_value = get_input_value(big_df, report_time)
 
-        # Clean feeds
-        small_df.columns = small_df.columns.str.strip().str.lower()
-        small_df["time"] = small_df["time"].apply(clean_timestamp)
-        big_df.columns = big_df.columns.str.strip().str.lower()
-        big_df["time"] = big_df["time"].apply(clean_timestamp)
+    if report_time is None or input_value is None:
+        st.error("⚠️ Could not determine Report Time or Input Value.")
+    else:
+        st.success(f"✅ Report Time: {report_time}")
+        st.success(f"✅ Input value: {input_value}")
 
-        # Debug feed timestamps
-        st.write("🕒 Most recent time in small feed:", get_most_recent_time(small_df))
-        st.write("🕒 Most recent time in big feed:", get_most_recent_time(big_df))
+        results = []
+        results += process_feed(small_df, "Sm", report_time, scope_type, scope_value, day_start_hour, measurements, input_value)
+        results += process_feed(big_df, "Bg", report_time, scope_type, scope_value, day_start_hour, measurements, input_value)
 
-        # Determine report time
-        if report_mode == "Most Current":
-            report_time = max(get_most_recent_time(small_df), get_most_recent_time(big_df))
+        final_df = pd.DataFrame(results)
+        final_df.sort_values(by=["Output", "Arrival"], ascending=[False, True], inplace=True)
+        final_df["Arrival"] = pd.to_datetime(final_df["Arrival"]).dt.strftime("%#d-%b-%y %H:%M")
 
-        input_value = get_input_value(small_df, report_time)
-        if input_value is None:
-            input_value = get_input_value(big_df, report_time)
+        st.dataframe(final_df)
 
-        if report_time is None or input_value is None:
-            st.error("⚠️ Could not determine Report Time or Input Value.")
-        else:
-            st.success(f"✅ Report Time: {report_time}")
-            st.success(f"✅ Input value: {input_value}")
+        timestamp_str = report_time.strftime("%y-%m-%d_%H-%M")
+        filename = f"origin_report_{timestamp_str}.csv"
 
-            results = []
-            results += process_feed(small_df, "Sm", report_time, scope_type, scope_value, day_start_hour, measurements, input_value)
-            results += process_feed(big_df, "Bg", report_time, scope_type, scope_value, day_start_hour, measurements, input_value)
+        csv_bytes = final_df.to_csv(index=False).encode()
+        st.download_button("📥 Download Report CSV", data=csv_bytes, file_name=filename, mime="text/csv")
 
-            final_df = pd.DataFrame(results)
-            final_df.sort_values(by=["Output", "Arrival"], ascending=[False, True], inplace=True)
+except Exception as e:
+    st.error(f"❌ Processing error: {e}")
 
-            final_df["Arrival"] = pd.to_datetime(final_df["Arrival"]).dt.strftime("%#d-%b-%y %H:%M")
-            
-            st.dataframe(final_df)
-
-            timestamp_str = report_time.strftime("%y-%m-%d_%H-%M")
-            filename = f"origin_report_{timestamp_str}.csv"
-
-            csv_bytes = final_df.to_csv(index=False).encode()
-            st.download_button("📥 Download Report CSV", data=csv_bytes, file_name=filename, mime="text/csv")
-
-    except Exception as e:
-        st.error(f"❌ Processing error: {e}")
