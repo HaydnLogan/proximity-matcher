@@ -3,6 +3,8 @@ import pandas as pd
 import datetime as dt
 from dateutil import parser
 from 002_processor import run_feed_processor, clean_timestamp, get_most_recent_time
+from 003_models import run_a_model_detection
+
 
 # 🔌 Streamlit interface (UI + orchestration)
 
