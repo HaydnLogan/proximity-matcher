@@ -97,7 +97,7 @@ if small_feed_file and big_feed_file and measurement_file:
             # ✅ Run A Model Detection if selected
             if run_a_models:
                 st.markdown("---")
-                st.subheader("🧪 A Model Detection Results")
+                st.subheader("🤖 A Model Detection Results")
                 # convert Arrival back to datetime
                 final_df["Arrival"] = pd.to_datetime(final_df["Arrival"], errors="coerce")
                 run_a_model_detection(final_df)
