@@ -101,31 +101,33 @@ def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour
 
     for origin, cols in origins.items():
         relevant_rows = df[["time", "open"] + cols].dropna()
-        for i in range(len(relevant_rows)-1):
+        for i in range(len(relevant_rows) - 1):
             current = relevant_rows.iloc[i]
-            above = relevant_rows.iloc[i+1]
+            above = relevant_rows.iloc[i + 1]
             changed = any(current[col] != above[col] for col in cols)
-            is_special = any(tag in origin for tag in ["wasp", "macedonia"])
-            if is_special:
+        
+            if changed:
                 origin_name = origin.lower()
-
-                # Default arrival time is the current row time
+                is_special = any(tag in origin_name for tag in ["wasp", "macedonia"])
+        
+                # Default to current row time
                 arrival_time = current["time"]
-
-                # Extract bracket number, e.g., [1] or [2]
-                bracket_number = 0
-                if "[" in origin_name and "]" in origin_name:
-                    try:
-                        bracket_number = int(origin_name.split("[")[-1].replace("]", ""))
-                    except:
-                        bracket_number = 0
-
-                # Apply weekly or monthly anchor times as needed
-                if "wasp" in origin_name:
-                    arrival_time = get_weekly_anchor(report_time, max(1, bracket_number), start_hour)
-                elif "macedonia" in origin_name:
-                    arrival_time = get_monthly_anchor(report_time, max(1, bracket_number), start_hour)
-
+        
+                # Handle special origins with bracketed offsets
+                if is_special:
+                    bracket_number = 0
+                    if "[" in origin_name and "]" in origin_name:
+                        try:
+                            bracket_number = int(origin_name.split("[")[-1].replace("]", ""))
+                        except:
+                            pass
+        
+                    if "wasp" in origin_name:
+                        arrival_time = get_weekly_anchor(report_time, max(1, bracket_number), start_hour)
+                    elif "macedonia" in origin_name:
+                        arrival_time = get_monthly_anchor(report_time, max(1, bracket_number), start_hour)
+        
+                # HLC logic still applies here, regardless of origin
                 H, L, C = current[cols[0]], current[cols[1]], current[cols[2]]
                 for _, row in measurements.iterrows():
                     output = calculate_pivot(H, L, C, row["m value"])
@@ -144,6 +146,7 @@ def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour
                         "Diff": output - input_value,
                         "Day": day
                     })
+
 
             elif not is_special and changed:
                 H, L, C = current[cols[0]], current[cols[1]], current[cols[2]]
