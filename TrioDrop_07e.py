@@ -26,7 +26,13 @@ if available_sheets:
 
 # 📅 Settings
 report_mode = st.radio("Select Report Time & Date", ["Most Current", "Choose a time"])
-report_time = st.datetime_input("Choose Report Time", value=dt.datetime.now()) if report_mode == "Choose a time" else None
+if report_mode == "Choose a time":
+    selected_date = st.date_input("Select Report Date", value=dt.date.today())
+    selected_time = st.time_input("Select Report Time", value=dt.datetime.now().time())
+    report_time = dt.datetime.combine(selected_date, selected_time)
+else:
+    report_time = None
+
 day_start_choice = st.radio("Select Day Start Time", ["17:00", "18:00"])
 day_start_hour = int(day_start_choice.split(":")[0])
 scope_type = st.radio("Scope by", ["Rows", "Days"])
