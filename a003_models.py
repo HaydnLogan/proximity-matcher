@@ -165,13 +165,21 @@ def run_a_model_detection(df):
     show_a_model_results(model_outputs, report_time)
 
 # 🧪 If run directly
-if __name__ == "__main__" or st._is_running_with_streamlit:
-    st.set_page_config(layout="wide")
-    st.title("🅰️ Position A Models – Output-Centric Scanner v07c")
+if __name__ == "__main__":
+    import streamlit as st
     uploaded_file = st.file_uploader("📄 Upload your traveler report CSV", type="csv")
 
     if uploaded_file:
         df = pd.read_csv(uploaded_file)
-        run_a_model_detection(df)
+        df["Arrival"] = pd.to_datetime(df["Arrival"], errors="coerce")
+        required = {"Arrival", "Day", "Origin", "M #", "Feed", "Output"}
+        if not required.issubset(df.columns):
+            st.error("Missing columns: " + ", ".join(required - set(df.columns)))
+            st.stop()
+
+        df = df[df["Output"] > 0].copy()
+        model_outputs, report_time = detect_A_models(df)
+        show_a_model_results(model_outputs, report_time)
     else:
         st.info("☝️ Upload a CSV file to begin detection.")
+
