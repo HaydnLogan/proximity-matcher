@@ -3,24 +3,48 @@ import pandas as pd
 import datetime as dt
 from dateutil import parser
 
+# 🔧 Utilities
+def clean_timestamp(ts):
+    if isinstance(ts, str):
+        dt_obj = parser.parse(ts)
+        return dt_obj.replace(tzinfo=None)  # Removes timezone but keeps local time
+    return pd.to_datetime(ts, errors="coerce")
+
 # 📁 File Uploads
 st.header("🧬 Data Feed Processor v07e5 with Meas selector")
 small_feed_file = st.file_uploader("Upload small feed", type="csv")
 big_feed_file = st.file_uploader("Upload big feed", type="csv")
 measurement_file = st.file_uploader("Upload measurement file", type=["xlsx", "xls"])
 
-# 2. If all files are uploaded, load data
+# 📄 Let user pick Report Time before loading feeds
+report_mode = st.radio("Select Report Time & Date", ["Most Current", "Choose a time"], key="report_mode_radio")
+if report_mode == "Choose a time":
+    selected_date = st.date_input("Select Report Date", value=dt.date.today(), key="report_date_picker")
+    selected_time = st.time_input("Select Report Time", value=dt.time(18, 0), key="report_time_picker")
+    report_time = dt.datetime.combine(selected_date, selected_time)
+else:
+    report_time = None  # will be calculated later
+
+# 📅 Settings
+day_start_choice = st.radio("Select Day Start Time", ["17:00", "18:00"])
+day_start_hour = int(day_start_choice.split(":")[0])
+scope_type = st.radio("Scope by", ["Rows", "Days"])
+scope_value = st.number_input(f"Enter number of {scope_type.lower()}", min_value=1, value=10)
+
+# If all files are uploaded, load and process data
 if small_feed_file and big_feed_file and measurement_file:
     try:
         small_df = pd.read_csv(small_feed_file)
         big_df = pd.read_csv(big_feed_file)
+        
         # Clean and parse timestamps as needed
         small_df.columns = small_df.columns.str.strip().str.lower()
         big_df.columns = big_df.columns.str.strip().str.lower()
+        
         small_df["time"] = small_df["time"].apply(clean_timestamp)
         big_df["time"] = big_df["time"].apply(clean_timestamp)
 
-        # 3. 📄 Dynamic sheet picker.  Detect available sheet names.  Choose sheet from measurement file
+        # 📄 Dynamic sheet picker.  Detect available sheet names.  Choose sheet from measurement file
         xls = pd.ExcelFile(measurement_file)
         available_sheets = xls.sheet_names
         default_sheet = "2a" if "2a" in available_sheets else available_sheets[0]
@@ -28,59 +52,11 @@ if small_feed_file and big_feed_file and measurement_file:
         measurements = pd.read_excel(measurement_file, sheet_name=sheet_choice)
         measurements.columns = measurements.columns.str.strip().str.lower()
 
-        # ✅ 4. safely let the user select Report Time
-        report_mode = st.radio("Select Report Time & Date", ["Most Current", "Choose a time"], key="report_mode_radio")
-
+        # Auto-set report_time if needed
         if report_mode == "Most Current":
-            report_time = max(get_most_recent_time(small_df), get_most_recent_time(big_df))
+            report_time = max(small_df["time"].max(), big_df["time"].max())
 
-        elif report_mode == "Choose a time":
-            selected_date = st.date_input("Select Report Date", value=dt.date.today(), key="report_date_picker")
-            selected_time = st.time_input("Select Report Time", value=dt.time(18, 0), key="report_time_picker")
-            report_time = dt.datetime.combine(selected_date, selected_time)
-
-        else:
-            report_time = None
-
-
-# 📅 Settings
-# report_mode = st.radio(
-#     "Select Report Time & Date",
-#     ["Most Current", "Choose a time"],
-#     key="report_mode_radio"  # ✅ unique key here
-# )
-
-# if report_mode == "Most Current":
-#     report_time = max(get_most_recent_time(small_df), get_most_recent_time(big_df))
-
-# elif report_mode == "Choose a time":
-#     selected_date = st.date_input(
-#         "Select Report Date",
-#         value=dt.date.today(),
-#         key="report_date_picker"  # ✅ unique key here
-#     )
-#     selected_time = st.time_input(
-#         "Select Report Time",
-#         value=dt.time(18, 0),
-#         key="report_time_picker"  # ✅ unique key here
-#     )
-#     report_time = dt.datetime.combine(selected_date, selected_time)
-
-# else:
-#     report_time = None
-
-
-day_start_choice = st.radio("Select Day Start Time", ["17:00", "18:00"])
-day_start_hour = int(day_start_choice.split(":")[0])
-scope_type = st.radio("Scope by", ["Rows", "Days"])
-scope_value = st.number_input(f"Enter number of {scope_type.lower()}", min_value=1, value=10)
-
-# 🔧 Utilities
-def clean_timestamp(ts):
-    if isinstance(ts, str):
-        dt_obj = parser.parse(ts)
-        return dt_obj.replace(tzinfo=None)  # Removes timezone but keeps local time
-    return pd.to_datetime(ts, errors="coerce")
+        st.success(f"✅ Using report time: {report_time.strftime('%d-%b-%y %H:%M')}")
 
 
 def extract_origins(columns):
