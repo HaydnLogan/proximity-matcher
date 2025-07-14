@@ -145,8 +145,8 @@ def show_a_model_results(model_outputs, report_time):
 
             with st.expander(header):
                 if results:
-                    today_results = [r for r in results if "today" in r["sequence"].iloc[-1]["Day"].lower()]
-                    other_results = [r for r in results if "today" not in r["sequence"].iloc[-1]["Day"].lower()]
+                    today_results = [r for r in results if "[0]" in str(r["sequence"].iloc[-1]["Day"]).lower()]
+                    other_results = [r for r in results if "[0]" not in str(r["sequence"].iloc[-1]["Day"]).lower()]
 
                     def render_group(name, group):
                         st.markdown(f"#### {name}")
