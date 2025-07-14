@@ -8,37 +8,39 @@ st.header("🧬 Data Feed Processor v07e4 with Meas selector")
 small_feed_file = st.file_uploader("Upload small feed", type="csv")
 big_feed_file = st.file_uploader("Upload big feed", type="csv")
 measurement_file = st.file_uploader("Upload measurement file", type=["xlsx", "xls"])
-# 📄 Dynamic sheet picker.  Detect available sheet names once the file is uploaded
-available_sheets = []
-if measurement_file is not None:
+
+# 2. If all files are uploaded, load data
+if small_feed_file and big_feed_file and measurement_file:
     try:
+        small_df = pd.read_csv(small_feed_file)
+        big_df = pd.read_csv(big_feed_file)
+        # Clean and parse timestamps as needed
+        small_df.columns = small_df.columns.str.strip().str.lower()
+        big_df.columns = big_df.columns.str.strip().str.lower()
+        small_df["time"] = small_df["time"].apply(clean_timestamp)
+        big_df["time"] = big_df["time"].apply(clean_timestamp)
+
+        # 3. 📄 Dynamic sheet picker.  Detect available sheet names.  Choose sheet from measurement file
         xls = pd.ExcelFile(measurement_file)
         available_sheets = xls.sheet_names
-    except Exception as e:
-        st.error(f"❌ Failed to read sheet names: {e}")
-        
-sheet_choice = None
-if available_sheets:
-    default_sheet = "2a" if "2a" in available_sheets else available_sheets[0]
-    sheet_choice = st.selectbox("Select measurement tab", available_sheets, index=available_sheets.index(default_sheet))
+        default_sheet = "2a" if "2a" in available_sheets else available_sheets[0]
+        sheet_choice = st.selectbox("Select measurement tab", available_sheets, index=available_sheets.index(default_sheet))
+        measurements = pd.read_excel(measurement_file, sheet_name=sheet_choice)
+        measurements.columns = measurements.columns.str.strip().str.lower()
 
-# Report time selection
-report_mode = st.radio("Select Report Time & Date", ["Most Current", "Choose a time"])
+        # ✅ 4. safely let the user select Report Time
+        report_mode = st.radio("Select Report Time & Date", ["Most Current", "Choose a time"], key="report_mode_radio")
 
-if report_mode == "Choose a time":
-    if "report_date" not in st.session_state:
-        st.session_state["report_date"] = dt.date.today()
+        if report_mode == "Most Current":
+            report_time = max(get_most_recent_time(small_df), get_most_recent_time(big_df))
 
-    if "report_time" not in st.session_state:
-        now = dt.datetime.now().replace(second=0, microsecond=0)
-        st.session_state["report_time"] = now.time()
+        elif report_mode == "Choose a time":
+            selected_date = st.date_input("Select Report Date", value=dt.date.today(), key="report_date_picker")
+            selected_time = st.time_input("Select Report Time", value=dt.time(18, 0), key="report_time_picker")
+            report_time = dt.datetime.combine(selected_date, selected_time)
 
-    selected_date = st.date_input("Select Report Date", key="report_date")
-    selected_time = st.time_input("Select Report Time", key="report_time")
-    report_time = dt.datetime.combine(selected_date, selected_time)
-else:
-    report_time = None  # Will be determined later from feed
-
+        else:
+            report_time = None
 
 
 # 📅 Settings
