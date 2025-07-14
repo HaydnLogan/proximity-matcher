@@ -101,6 +101,55 @@ def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour
 
     for origin, cols in origins.items():
         relevant_rows = df[["time", "open"] + cols].dropna()
+
+        origin_name = origin.lower()
+        is_special = any(tag in origin_name for tag in ["wasp", "macedonia"])
+    
+        if is_special:
+            # Only use the report_time row
+            report_row = relevant_rows[relevant_rows["time"] == report_time]
+            if report_row.empty:
+                continue  # Skip if not found
+    
+            current = report_row.iloc[0]
+    
+            # Determine bracket number
+            bracket_number = 0
+            if "[" in origin_name and "]" in origin_name:
+                try:
+                    bracket_number = int(origin_name.split("[")[-1].replace("]", ""))
+                except:
+                    bracket_number = 0
+    
+            # Calculate arrival time
+            if "wasp" in origin_name:
+                arrival_time = get_weekly_anchor(report_time, max(1, bracket_number), start_hour)
+            elif "macedonia" in origin_name:
+                arrival_time = get_monthly_anchor(report_time, max(1, bracket_number), start_hour)
+            else:
+                arrival_time = report_time  # fallback
+    
+            H, L, C = current[cols[0]], current[cols[1]], current[cols[2]]
+            for _, row in measurements.iterrows():
+                output = calculate_pivot(H, L, C, row["m value"])
+                day = get_day_index(arrival_time, report_time, start_hour)
+                new_data_rows.append({
+                    "Feed": feed_type,
+                    "Arrival": arrival_time,
+                    "Origin": origin,
+                    "M Name": row["m name"],
+                    "M #": row["m #"],
+                    "R #": row["r #"],
+                    "Tag": row["tag"],
+                    "Family": row["family"],
+                    "Input": input_value,
+                    "Output": output,
+                    "Diff": output - input_value,
+                    "Day": day
+                })
+            continue  # Skip rest of this loop for special origins
+
+        
         for i in range(len(relevant_rows) - 1):
             current = relevant_rows.iloc[i]
             above = relevant_rows.iloc[i + 1]
