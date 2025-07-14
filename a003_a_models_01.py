@@ -13,7 +13,7 @@ def sequence_signature(seq):
 
 def classify_A_model(row_0, prior_rows):
     epic = {"trinidad", "tobago", "wasp-12b", "macedonia"}
-    anchor = {"saturn", "jupiter", "kepler-62f", "kepler-442b"}
+    anchor = {"spain", "saturn", "jupiter", "kepler-62f", "kepler-442b"}
     t0 = row_0["Arrival"]
     o0 = row_0["Origin"].lower()
     time = "open" if t0.hour == 18 and t0.minute == 0 else \
