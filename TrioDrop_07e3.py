@@ -42,18 +42,31 @@ else:
 
 
 # 📅 Settings
-report_mode = st.radio("Select Report Time & Date", ["Most Current", "Choose a time"])
+report_mode = st.radio(
+    "Select Report Time & Date",
+    ["Most Current", "Choose a time"],
+    key="report_mode_radio"  # ✅ unique key here
+)
 
 if report_mode == "Most Current":
     report_time = max(get_most_recent_time(small_df), get_most_recent_time(big_df))
 
 elif report_mode == "Choose a time":
-    selected_date = st.date_input("Select Report Date", value=dt.date.today())
-    selected_time = st.time_input("Select Report Time", value=dt.datetime.now().time())
+    selected_date = st.date_input(
+        "Select Report Date",
+        value=dt.date.today(),
+        key="report_date_picker"  # ✅ unique key here
+    )
+    selected_time = st.time_input(
+        "Select Report Time",
+        value=dt.time(18, 0),
+        key="report_time_picker"  # ✅ unique key here
+    )
     report_time = dt.datetime.combine(selected_date, selected_time)
 
 else:
     report_time = None
+
 
 day_start_choice = st.radio("Select Day Start Time", ["17:00", "18:00"])
 day_start_hour = int(day_start_choice.split(":")[0])
