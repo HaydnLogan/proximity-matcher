@@ -68,8 +68,6 @@ def get_monthly_anchor(report_time, months_back, start_hour):
 
 # ✅ Main feed processor function
 def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour, measurements, input_value):
-    df.columns = df.columns.str.strip().str.lower()
-    df["time"] = df["time"].apply(clean_timestamp)
     df = df.iloc[::-1]  # reverse chronological
 
     if report_time:
@@ -163,5 +161,11 @@ def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour
                         "Diff": output - input_value,
                         "Day": day
                     })
+    # ✅ Enforce type integrity on all final rows
+    for row in new_data_rows:
+        row["Output"] = float(row["Output"])
+        row["M #"] = float(row["M #"])
+        row["Input"] = float(row["Input"])
+        row["Arrival"] = pd.to_datetime(row["Arrival"], errors="coerce")
 
     return new_data_rows
