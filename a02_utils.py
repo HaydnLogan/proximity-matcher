@@ -4,6 +4,18 @@ import pandas as pd
 import datetime as dt
 from dateutil import parser
 
+# ✅ Normalize any timestamp to naive datetime (removes timezone)
+def normalize_timestamp(ts):
+    if isinstance(ts, pd.Timestamp):
+        return ts.tz_localize(None)
+    if isinstance(ts, dt.datetime):
+        return ts.replace(tzinfo=None)
+    try:
+        return pd.to_datetime(ts).tz_localize(None)
+    except:
+        return pd.to_datetime(ts, errors="coerce")
+
+
 # ✅ Parse timestamp strings and drop timezone
 def clean_timestamp(ts):
     if isinstance(ts, str):
