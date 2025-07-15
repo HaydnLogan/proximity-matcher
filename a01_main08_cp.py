@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import datetime as dt
-from a02_utils import clean_timestamp, get_most_recent_time, get_input_value, process_feed
+from a02_utils import normalize_timestamp, get_most_recent_time, get_input_value, process_feed
 from a003_models_01cp import run_a_model_detection
 from a003_models_01cp import run_b_model_detection
 from a04_feed_sanitizer_01 import sanitize_feed, validate_feed
@@ -21,7 +21,7 @@ report_mode = st.radio("Select Report Time & Date", ["Most Current", "Choose a t
 if report_mode == "Choose a time":
     selected_date = st.date_input("Select Report Date", value=dt.date.today(), key="report_date_picker")
     selected_time = st.time_input("Select Report Time", value=dt.time(18, 0), key="report_time_picker")
-    report_time = dt.datetime.combine(selected_date, selected_time)
+    report_time = normalize_timestamp(dt.datetime.combine(selected_date, selected_time))
 else:
     report_time = None  # will be computed later
 
@@ -61,8 +61,9 @@ if small_feed_file and big_feed_file and measurement_file:
 
         # ⏱️ Set report time (if not already chosen)
         if report_mode == "Most Current":
-            report_time = max(small_df["time"].max(), big_df["time"].max())
+            report_time = normalize_timestamp(max(small_df["time"].max(), big_df["time"].max()))
 
+        
         # ✅ Filter feeds to exclude data after report_time
         if filter_future_data and report_time:
             before_small = len(small_df)
