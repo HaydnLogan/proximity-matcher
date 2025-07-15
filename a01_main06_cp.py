@@ -103,5 +103,13 @@ if small_feed_file and big_feed_file and measurement_file:
                 final_df["Arrival"] = pd.to_datetime(final_df["Arrival"], errors="coerce")
                 run_a_model_detection(final_df)
 
+            # ✅ Run A Model Detection if selected
+            if run_b_models:
+                st.markdown("---")
+                st.subheader("🤖 B Models")
+                # convert Arrival back to datetime
+                final_df["Arrival"] = pd.to_datetime(final_df["Arrival"], errors="coerce")
+                run_b_model_detection(final_df)    
+
     except Exception as e:
         st.error(f"❌ Processing error: {e}")
