@@ -19,6 +19,7 @@ def sanitize_feed(df):
     return df
 
 def validate_feed(df):
+    df.columns = df.columns.str.strip().str.lower()  # ✅ normalize first
     issues = []
 
     # Check key columns
