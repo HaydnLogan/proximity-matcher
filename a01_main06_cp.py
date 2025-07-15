@@ -35,6 +35,7 @@ scope_value = st.number_input(f"Enter number of {scope_type.lower()}", min_value
 
 # ✅ Optional A Model Detection toggle
 run_a_models = st.sidebar.checkbox("Run A Model Detection")
+run_b_models = st.sidebar.checkbox("Run B Model Detection")
 
 # 🧠 Process feeds if ready
 if small_feed_file and big_feed_file and measurement_file:
