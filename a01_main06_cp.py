@@ -33,7 +33,7 @@ day_start_hour = int(day_start_choice.split(":")[0])
 scope_type = st.radio("Scope by", ["Rows", "Days"])
 scope_value = st.number_input(f"Enter number of {scope_type.lower()}", min_value=1, value=10)
 
-# ✅ Optional A Model Detection toggle
+# ✅ Model Detection toggles
 run_a_models = st.sidebar.checkbox("Run A Model Detection")
 run_b_models = st.sidebar.checkbox("Run B Model Detection")
 
@@ -97,20 +97,20 @@ if small_feed_file and big_feed_file and measurement_file:
             st.download_button("📥 Download Report CSV", data=final_df.to_csv(index=False).encode(), file_name=filename, mime="text/csv")
 
             # ✅ Run A Model Detection if selected
-            if run_a_models:
-                st.markdown("---")
-                st.subheader("🤖 A Model Detection Results")
-                # convert Arrival back to datetime
-                final_df["Arrival"] = pd.to_datetime(final_df["Arrival"], errors="coerce")
-                run_a_model_detection(final_df)
-
-            # ✅ Run A Model Detection if selected
             if run_b_models:
                 st.markdown("---")
                 st.subheader("🤖 B Models")
                 # convert Arrival back to datetime
                 final_df["Arrival"] = pd.to_datetime(final_df["Arrival"], errors="coerce")
                 run_b_model_detection(final_df)    
+            
+            # ✅ Run A Model Detection if selected
+            if run_a_models:
+                st.markdown("---")
+                st.subheader("🤖 A Model Detection Results")
+                # convert Arrival back to datetime
+                final_df["Arrival"] = pd.to_datetime(final_df["Arrival"], errors="coerce")
+                run_a_model_detection(final_df)
 
     except Exception as e:
         st.error(f"❌ Processing error: {e}")
