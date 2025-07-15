@@ -80,6 +80,8 @@ def get_monthly_anchor(report_time, months_back, start_hour):
 
 # ✅ Main feed processor function
 def process_feed(df, feed_type, report_time, scope_type, scope_value, start_hour, measurements, input_value):
+    df.columns = df.columns.str.strip().str.lower()
+    df["time"] = df["time"].apply(clean_timestamp)
     df = df.iloc[::-1]  # reverse chronological
 
     if report_time:
