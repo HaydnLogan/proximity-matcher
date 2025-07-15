@@ -91,8 +91,14 @@ if small_feed_file and big_feed_file and measurement_file:
             results += process_feed(big_df, "Bg", report_time, scope_type, scope_value, day_start_hour, measurements, input_value)
 
             final_df = pd.DataFrame(results)
-            final_df.sort_values(by=["Output", "Arrival"], ascending=[False, True], inplace=True)
+            final_df.sort_values(by=["Output", "Arrival"], ascending=[False, True], inplace=True) 
             final_df["Arrival"] = pd.to_datetime(final_df["Arrival"]).dt.strftime("%#d-%b-%y %H:%M")
+            final_df["Day"] = final_df["Day"].astype(str)
+            
+            # 👮 Enforce numeric types to prevent detection issues
+            final_df["Output"] = pd.to_numeric(final_df["Output"], errors="coerce")
+            final_df["M #"] = pd.to_numeric(final_df["M #"], errors="coerce")
+            final_df["Input"] = pd.to_numeric(final_df["Input"], errors="coerce")
 
             st.subheader("📊 Final Traveler Report")
             st.dataframe(final_df)
@@ -101,7 +107,7 @@ if small_feed_file and big_feed_file and measurement_file:
             filename = f"origin_report_{timestamp_str}.csv"
             st.download_button("📥 Download Report CSV", data=final_df.to_csv(index=False).encode(), file_name=filename, mime="text/csv")
 
-            # ✅ Run A Model Detection if selected
+            # ✅ Run B Model Detection if selected
             if run_b_models:
                 st.markdown("---")
                 st.subheader("🤖 B Models")
