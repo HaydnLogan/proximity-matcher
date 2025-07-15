@@ -144,8 +144,8 @@ def show_a_model_results(model_outputs, report_time):
             header = f"{key}. {title} – {output_count} output{'s' if output_count != 1 else ''}"
 
             with st.expander(header):
-                today_results = [r for r in results if "[0]" in str(r["sequence"].iloc[-1]["Day"]).lower()]
-                other_results = [r for r in results if "[0]" not in str(r["sequence"].iloc[-1]["Day"]).lower()]
+                today = [r for r in results if "[0]" in str(r["sequence"].iloc[-1]["Day"])]
+                other = [r for r in results if "[0]" not in str(r["sequence"].iloc[-1]["Day"])]
                 
                 def render_group(name, group):
                     st.markdown(f"#### {name}")
@@ -251,9 +251,9 @@ def show_b_model_results(b_outputs, report_time):
         header = f"{code}. {label} – {output_count} output{'s' if output_count != 1 else ''}"
 
         with st.expander(header):
-            today         = [r for r in results if "[0]" in str(r["sequence"].iloc[-1]["Day"]).lower()]
-            other         = [r for r in results if "[0]" not in str(r["sequence"].iloc[-1]["Day"]).lower()]
-
+            today = [r for r in results if "[0]" in str(r["sequence"].iloc[-1]["Day"])]
+            other = [r for r in results if "[0]" not in str(r["sequence"].iloc[-1]["Day"])]
+            
             def render_group(title, group):
                 st.markdown(f"#### {title}")
                 outputs = defaultdict(list)
