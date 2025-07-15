@@ -4,6 +4,7 @@ import datetime as dt
 from a02_utils import clean_timestamp, get_most_recent_time, get_input_value, process_feed
 from a003_models_01cp import run_a_model_detection
 from a003_models_01cp import run_b_model_detection
+from a04_feed_sanitizer_01 import sanitize_feed, validate_feed
 
 # 🔌 Streamlit interface (UI + orchestration)
 
@@ -40,13 +41,17 @@ run_b_models = st.sidebar.checkbox("Run B Model Detection")
 # 🧠 Process feeds if ready
 if small_feed_file and big_feed_file and measurement_file:
     try:
-        # 📥 Load and clean feeds
-        small_df = pd.read_csv(small_feed_file)
-        big_df = pd.read_csv(big_feed_file)
-        small_df.columns = small_df.columns.str.strip().str.lower()
-        big_df.columns = big_df.columns.str.strip().str.lower()
-        small_df["time"] = small_df["time"].apply(clean_timestamp)
-        big_df["time"] = big_df["time"].apply(clean_timestamp)
+        # 🧼 Clean feeds
+        small_df = sanitize_feed(pd.read_csv(small_feed_file))
+        big_df   = sanitize_feed(pd.read_csv(big_feed_file))
+
+        # 🔍 Optional feed checks
+        for label, df in [("Small Feed", small_df), ("Big Feed", big_df)]:
+            issues = validate_feed(df)
+            if issues:
+                st.warning(f"Sanitizer flagged issues in {label}:")
+                for msg in issues:
+                    st.markdown(f"- {msg}")
 
         # 📈 Measurements
         xls = pd.ExcelFile(measurement_file)
