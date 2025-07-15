@@ -140,15 +140,13 @@ def show_a_model_results(model_outputs, report_time):
         for suffix, title in [("", f"2+ to {label}"), ("pr", f"Pair to {label}")]:
             key = code + suffix
             results = model_outputs.get(key, [])
-            if not results:
-                continue
             output_count = len(set(r["output"] for r in results))
             header = f"{key}. {title} – {output_count} output{'s' if output_count != 1 else ''}"
 
             with st.expander(header):
-                today_results = [r for r in results if "today" in r["sequence"].iloc[-1]["Day"].lower()]
-                other_results = [r for r in results if "today" not in r["sequence"].iloc[-1]["Day"].lower()]
-
+                today_results = [r for r in results if "[0]" in str(r["sequence"].iloc[-1]["Day"]).lower()]
+                other_results = [r for r in results if "[0]" not in str(r["sequence"].iloc[-1]["Day"]).lower()]
+                
                 def render_group(name, group):
                     st.markdown(f"#### {name}")
                     output_groups = defaultdict(list)
@@ -236,7 +234,7 @@ def detect_B_models(df):
 
     return b_outputs, report_time
 
-def show_b_model_results(model_outputs, report_time):
+def show_b_model_results(b_outputs, report_time):
     label_map = {
         "B01": "Same Polarity Descenders",
         "B02": "Mixed Polarity Descenders"
@@ -245,7 +243,7 @@ def show_b_model_results(model_outputs, report_time):
     st.subheader("🌀 B Model Results")
 
     for code, label in label_map.items():
-        results = model_outputs.get(code, [])
+        results = b_outputs.get(code, [])
         if not results:
             continue
 
@@ -285,6 +283,6 @@ def show_b_model_results(model_outputs, report_time):
 
 # Optional top-level run method
 def run_b_model_detection(df):
-    model_outputs, report_time = detect_B_models(df)
-    show_b_model_results(model_outputs, report_time)
-    return model_outputs
+    b_outputs, report_time = detect_B_models(df)
+    show_b_model_results(b_outputs, report_time)
+    return b_outputs
