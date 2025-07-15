@@ -7,7 +7,7 @@ from a003_a_models_03cg import run_a_model_detection
 # 🔌 Streamlit interface (UI + orchestration)
 
 st.set_page_config(layout="wide")
-st.header("🧬 Data Feed Processor v07e5 + A Model Integration")
+st.header("🧬 Data Feed Processor v07e5 + Model Detector, v5")
 
 # 📤 Upload feeds
 small_feed_file = st.file_uploader("Upload small feed", type="csv")
