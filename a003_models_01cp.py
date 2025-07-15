@@ -251,8 +251,8 @@ def show_b_model_results(b_outputs, report_time):
         header = f"{code}. {label} – {output_count} output{'s' if output_count != 1 else ''}"
 
         with st.expander(header):
-            today = [r for r in results if "[0]" in r["sequence"].iloc[-1]["Day"]]
-            other = [r for r in results if "[0]" not in r["sequence"].iloc[-1]["Day"]]
+            today         = [r for r in results if "[0]" in str(r["sequence"].iloc[-1]["Day"]).lower()]
+            other         = [r for r in results if "[0]" not in str(r["sequence"].iloc[-1]["Day"]).lower()]
 
             def render_group(title, group):
                 st.markdown(f"#### {title}")
